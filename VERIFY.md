@@ -20,6 +20,13 @@ Below, `R` is the record file
 and `K` is the authorization file
 `keys/sequence/authorizations/dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038.json`.
 
+**Getting the files.** File names include full 64-character hashes, so on Windows either
+clone into a short path (for example `C:\oxyon-evidence`) or allow long paths:
+
+```
+git clone -c core.longpaths=true https://github.com/LewSales/oxyon-evidence
+```
+
 Network: XL1 Sequence, chain `4b43a753c8024c0e5000e8ac948ac0063ac624bc`.
 - RPC: `https://beta.api.chain.xyo.network/rpc`
 - Blocks: `https://blocks.sequence.xyo.space/block/number/<n>.json`
