@@ -132,6 +132,22 @@ python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb9
 Every row should read `[ok]`, and the exit code should be 0. Rows marked "Oxyon's disclosure"
 are statements, not checks.
 
+## 8. Check that the verifier rejects bad evidence
+
+```
+python verify/selftest.py
+```
+
+This runs the verifier on the genuine record and on deliberately broken copies in
+`verify/fixtures/` (not evidence):
+- a one-letter change to the claim;
+- an altered SHA-256;
+- a receipt naming the wrong block producer;
+- a missing authorization.
+
+The genuine record must pass. Each broken copy must fail, or report INCOMPLETE, for the
+right reason.
+
 ## Limits
 
 - **Revocations.** `verify_evidence.py` scans every block from the authorization to the anchor

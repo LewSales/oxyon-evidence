@@ -22,6 +22,8 @@ is nothing on Mainnet.
 | `verify/sigcheck.mjs` | Signature check using XYO's own published validator |
 | `verification/` | Oxyon's own verification runs, for reference (not independent) |
 | `VERIFY.md` | Step-by-step reproduction, by hand or with the scripts |
+| `verify/fixtures/` + `verify/selftest.py` | Deliberately broken copies (**not evidence**) that the verifier must reject |
+| `LICENSING.md`, `LICENSE-CC0`, `verify/LICENSE` | CC0 1.0 for the evidence, MIT for the scripts |
 
 ## The first record
 
@@ -73,6 +75,9 @@ a valid transaction, and none can alter a signed one. The checks above rest on s
 hashes and the GitHub bytes, not on who produced the block. It does mean these blocks were
 **not** produced by an unrelated, independent operator.
 
+This evidence has **not** been verified by an independent block producer, and nothing here
+claims it has. Independence comes from the fact that anyone can repeat the checks.
+
 ## Verify it yourself
 
 ```
@@ -88,6 +93,20 @@ chain. If GitHub is unavailable, it uses the archived copy in `blobs/` and says 
 Records and receipts are never edited or deleted. A correction is a new record that
 supersedes the old one; both stay published. A revocation takes effect at its own block and
 does not invalidate evidence anchored before it.
+
+## In one sentence
+
+The on-chain commitment verifies **integrity and provenance**: these exact bytes, from this
+commit, were committed under this authorization, no later than this block. It does **not**
+verify the factual accuracy of any telemetry measurement inside them.
+
+## Licensing
+
+- Evidence data (records, receipts, authorizations, index, docs) and the archived
+  snapshots, to the extent of Oxyon's rights: **CC0 1.0**.
+- The verification scripts in `verify/`: **MIT**.
+
+See `LICENSING.md`, `LICENSE-CC0` and `verify/LICENSE`.
 
 ## Formats
 

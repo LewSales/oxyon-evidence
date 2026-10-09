@@ -97,7 +97,10 @@ def load_repo_record(path):
             raise SystemExit('cannot find the repository root (no keys/ directory above the record)')
         root = parent
     net = doc['record']['subject']['network']
-    auth_doc = json.load(open(os.path.join(root, 'keys', net, 'authorizations', doc['record']['authorization'] + '.json'), encoding='utf-8'))
+    auth_path = os.path.join(root, 'keys', net, 'authorizations', doc['record']['authorization'] + '.json')
+    if not os.path.exists(auth_path):
+        return {'root': root, 'missing': f"authorization file keys/{net}/authorizations/{doc['record']['authorization'][:16]}….json", 'record': doc['record'], 'batch': doc['batch']}
+    auth_doc = json.load(open(auth_path, encoding='utf-8'))
     return {
         'root': root, 'authorization': auth_doc['authorization'], 'record': doc['record'], 'batch': doc['batch'],
         'anchorTx': {'network': net, 'hash': doc['receipt']['tx']}, 'authorizationTx': {'network': net, 'hash': auth_doc['receipt']['tx']},
@@ -111,6 +114,9 @@ def main():
     bundle = json.load(open(sys.argv[1], encoding='utf-8'))
     if 'receipt' in bundle:
         bundle = load_repo_record(sys.argv[1])
+        if 'missing' in bundle:
+            print(f"[INCOMPLETE] Required file missing: {bundle['missing']}. The evidence chain cannot be followed end to end; nothing else was checked.")
+            sys.exit(2)
     for flag, field in (('--authorization-tx', 'authorizationTx'), ('--anchor-tx', 'anchorTx')):
         if flag in sys.argv:
             bundle[field] = {'network': bundle['record']['subject']['network'], 'hash': sys.argv[sys.argv.index(flag) + 1].lower()}

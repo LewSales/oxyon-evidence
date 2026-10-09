@@ -1,0 +1,63 @@
+{
+  "record": {
+    "schema": "oxyon.evidence.record.v1",
+    "claim": {
+      "type": "xl1.producer.telemetry",
+      "statement": "Oxyon's Windows producer (2152e6aec996742fb6e52ae1aad87bd44f2ccc91) published this status snapshot, generated at 2026-10-09T06:09:17.490Z."
+    },
+    "subject": {
+      "kind": "xl1-producer",
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+      "address": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91"
+    },
+    "source": {
+      "url": "https://raw.githubusercontent.com/LewSales/xl1-status-data/76b3489a817b58ddc7ac3dbada845dcacb156156/windows.json",
+      "repository": "https://github.com/LewSales/xl1-status-data",
+      "commit": "76b3489a817b58ddc7ac3dbada845dcacb156156",
+      "path": "windows.json",
+      "publisher": "xl1-publisher (the producer's own public status feed)"
+    },
+    "content": {
+      "mediaType": "application/json",
+      "algorithm": "sha256",
+      "canonicalization": "none — the exact bytes served at source.url",
+      "sha256": "a9951280cfd5175c9b586cc3fcf834641b2f7465f9c398e8a7097768a5df3735",
+      "bytes": 34680
+    },
+    "observedAt": 1791526157490,
+    "issuedAt": 1791526166208,
+    "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "anchoredBy": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "authorization": "0000000000000000000000000000000000000000000000000000000000000000",
+    "establishes": "That these exact bytes existed, unchanged, no later than the block that commits this record.",
+    "doesNotEstablish": "That the figures in the snapshot were true when measured. The producer reports them about itself.",
+    "version": 1
+  },
+  "batch": {
+    "schema": "oxyon.geoproof.anchor.batch.v1",
+    "proofHashes": [
+      "82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05"
+    ],
+    "network": "xl1:sequence:4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "anchoredAt": 1791526166208
+  },
+  "receipt": {
+    "schema": "oxyon.evidence.receipt.v1",
+    "kind": "anchor",
+    "record": "82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05",
+    "batch": "26c6491b9ddfde3931873b394dc49159b527d26725c1c07e2a72988fd0c37860",
+    "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+    "network": "sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "tx": "6987871cbeb54f245be8600d98a4f043040142b52eccd2d4be9b8b8494b1e5ce",
+    "signer": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "block": 664739,
+    "blockHash": "71beaaea827cf3160134f25b55e21e245247e00b50146242e106a1231576799b",
+    "blockTime": 1791555326716,
+    "blockProducer": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+    "inclusionNote": "Included in a block produced by 2152…cc91, Oxyon's Windows producer, which is also the subject of this record. Inclusion is not verification: anyone can check the commitment against signatures, hashes and the GitHub bytes without trusting the block producer.",
+    "version": 1
+  },
+  "_fixture": "FIXTURE: deliberately broken copy for verify/selftest.py. NOT EVIDENCE."
+}

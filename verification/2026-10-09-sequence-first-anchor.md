@@ -6,12 +6,13 @@ one that counts.
 
 | | |
 |---|---|
-| Run at (UTC) | 2026-10-09T16:46:23Z |
-| Sequence finalized head | #665042 |
+| Run at (UTC) | 2026-10-09T17:10:40Z |
+| Sequence finalized head | #665102 |
 | Python | Python 3.13.5 (standard library only) |
 | Node.js (signature step) | v22.16.0, @xyo-network/sdk-protocol 7.4.2 |
-| verify/verify_evidence.py | sha256 `3de38db4b2e34710f7c433ed2341e2112e7a85484d94fc4630da51d2a9542c86` |
+| verify/verify_evidence.py | sha256 `c9917f8ec520bf6d02da882f4b24af4b217c8bb5ac44f6bd4bf82d859bda1e58` |
 | verify/sigcheck.mjs | sha256 `0ebb8f2d2939c6787bf8871b8834c03407c69c4253806cb1440f82133a7525f9` |
+| verify/selftest.py | sha256 `e70db96a9433d5af8020b74c3f830fa2629cab5080720fa8f25e715be1829c2b` |
 
 ## `python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json`
 
@@ -38,4 +39,17 @@ exit code: 0
 ```
 A 4cdf748d…: signature valid for 4e881c8217945f356900eb5e9e66fcbb05da3829
 C 6987871c…: signature valid for ee9d194be80f4bafcb9e9f10f765f3afa431a8bc
+```
+
+## `python verify/selftest.py` (broken fixtures must be rejected)
+
+```
+PASS  genuine record verifies: exit 0 (expected 0)
+PASS  one letter of the claim changed: exit 1 (expected 1)
+PASS  committed SHA-256 altered: exit 1 (expected 1)
+PASS  receipt names the wrong block producer: exit 1 (expected 1)
+PASS  authorization file missing: exit 2 (expected 2)
+
+5/5 cases behaved as expected
+exit code: 0
 ```
