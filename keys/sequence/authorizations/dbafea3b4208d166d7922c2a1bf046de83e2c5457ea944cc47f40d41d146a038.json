@@ -1,0 +1,39 @@
+{
+  "authorization": {
+    "schema": "oxyon.evidence.authorization.v1",
+    "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "delegate": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "role": "anchorer",
+    "scope": {
+      "claims": [
+        "xl1.producer.telemetry"
+      ],
+      "recordSchema": "oxyon.evidence.record.v1",
+      "network": {
+        "id": "sequence",
+        "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc"
+      }
+    },
+    "validFrom": 1791504000000,
+    "validUntil": 1799452800000,
+    "statement": "Oxyon, identified on XL1 by address 4e881c8217945f356900eb5e9e66fcbb05da3829, authorises address ee9d194be80f4bafcb9e9f10f765f3afa431a8bc to anchor Oxyon evidence records of XL1 producer telemetry on XL1 Sequence (chain 4b43a753c8024c0e5000e8ac948ac0063ac624bc) from 2026-10-09T00:00Z until 2027-01-09T00:00Z, unless revoked earlier.",
+    "doesNotAuthorise": "Anything else: speaking for Oxyon on other matters, moving Oxyon funds, issuing further authorisations, or anchoring on any other network.",
+    "revocation": "An oxyon.evidence.revocation.v1 record whose revokes field is this record's hash, signed by the issuer and committed on the same network. It takes effect at its own block and does not invalidate records anchored before it.",
+    "version": 1
+  },
+  "receipt": {
+    "schema": "oxyon.evidence.receipt.v1",
+    "kind": "authorization",
+    "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+    "network": "sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "tx": "4cdf748dac18fab2f26b67a155fc192591fc4e5f0d5b16afbb5707b3d9974187",
+    "signer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "block": 664733,
+    "blockHash": "45a0047b561bf5f01110177624b3c6952f026522065f7ca53ff54e4cb5e587ee",
+    "blockTime": 1791555154375,
+    "blockProducer": "ca08120874f071739d932b24da41cc13299123b3",
+    "inclusionNote": "Included in a block produced by ca08…23b3, a producer operated by Oxyon. Inclusion is not verification: the commitment is checked against signatures and hashes, not against who produced the block.",
+    "version": 1
+  }
+}

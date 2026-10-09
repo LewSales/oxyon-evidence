@@ -1,0 +1,40 @@
+{
+  "schema": "oxyon.evidence.index.v1",
+  "records": [
+    {
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+      "record": "82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05",
+      "batch": "26c6491b9ddfde3931873b394dc49159b527d26725c1c07e2a72988fd0c37860",
+      "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+      "claimType": "xl1.producer.telemetry",
+      "subject": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+      "observedAt": 1791526157490,
+      "anchorTx": "6987871cbeb54f245be8600d98a4f043040142b52eccd2d4be9b8b8494b1e5ce",
+      "anchorBlock": 664739,
+      "anchorBlockTime": 1791555326716,
+      "receipt": "928afab95c837705d0c5a4e0d5ee3225e958b3d6959853a3d20ad20f134c5b32",
+      "path": "records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json",
+      "source": "https://raw.githubusercontent.com/LewSales/xl1-status-data/76b3489a817b58ddc7ac3dbada845dcacb156156/windows.json",
+      "contentSha256": "a9951280cfd5175c9b586cc3fcf834641b2f7465f9c398e8a7097768a5df3735"
+    }
+  ],
+  "authorizations": [
+    {
+      "network": "sequence",
+      "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+      "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+      "delegate": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+      "validFrom": 1791504000000,
+      "validUntil": 1799452800000,
+      "tx": "4cdf748dac18fab2f26b67a155fc192591fc4e5f0d5b16afbb5707b3d9974187",
+      "block": 664733,
+      "receipt": "359394459eaaf2386fac399b3d721ef18263fcd1db79c055e0ed08837ca7dd99",
+      "path": "keys/sequence/authorizations/dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038.json",
+      "status": "active"
+    }
+  ],
+  "revocations": [],
+  "note": "Index for convenience. Every entry is re-derivable from the files it points to and from the chain; its completeness is Oxyon's claim.",
+  "version": 1
+}

@@ -1,0 +1,1561 @@
+{
+  "schema": 1,
+  "label": "windows",
+  "generatedAt": "2026-10-09T06:09:17.490Z",
+  "status": "ok",
+  "problemCount": 0,
+  "chain": {
+    "network": "sequence",
+    "networkName": "Sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "currentBlock": 663728,
+    "finalizedBlock": 663728,
+    "finalizationLag": 0,
+    "explorerUrl": "https://explore.xyo.network/xl1/sequence"
+  },
+  "producer": {
+    "address": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+    "url": "https://explore.xyo.network/xl1/sequence/address/2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+    "rank": 5,
+    "producers": 8,
+    "sharePercent": 10.81,
+    "blocks": {
+      "total": 9352,
+      "today": 6,
+      "week": 2991,
+      "day24h": 822,
+      "day24hComplete": true
+    },
+    "lastBlock": 663725,
+    "lastBlockUrl": "https://explore.xyo.network/xl1/sequence/block/number/663725",
+    "blocksSinceLast": 3,
+    "rewardXl1": "467,605.6483",
+    "rewardAddressUrl": "https://explore.xyo.network/xl1/sequence/address/2152e6aec996742fb6e52ae1aad87bd44f2ccc91"
+  },
+  "network": {
+    "observed": {
+      "blocks": 86476,
+      "fromBlock": 577263,
+      "toBlock": 663728,
+      "since": "2026-08-30T19:02:45.136Z",
+      "behind": 0,
+      "daysStored": 35,
+      "daysKept": 35,
+      "complete": false
+    },
+    "concentration": {
+      "producers": 8,
+      "blocks": 86476,
+      "leaderShare": 16.75,
+      "top3Share": 49.05,
+      "nakamoto": 4,
+      "nakamoto67": 5,
+      "evenShare": 12.5
+    },
+    "blockTime": {
+      "samples": 80931,
+      "meanSeconds": 37.95,
+      "medianSeconds": 40,
+      "p90Seconds": 60,
+      "p95Seconds": 60,
+      "p99Seconds": 60,
+      "minSeconds": 0.02,
+      "maxSeconds": 1499.32,
+      "edges": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        70,
+        75,
+        80,
+        90,
+        100,
+        120,
+        150,
+        180,
+        240,
+        300,
+        420,
+        600,
+        900
+      ],
+      "buckets": [
+        1268,
+        11421,
+        9453,
+        5191,
+        4041,
+        3318,
+        2882,
+        2790,
+        2748,
+        2644,
+        3118,
+        4042,
+        27736,
+        138,
+        24,
+        6,
+        3,
+        1,
+        14,
+        8,
+        4,
+        8,
+        0,
+        59,
+        0,
+        0,
+        14
+      ],
+      "rejected": {
+        "nonPositive": 0,
+        "nonConsecutive": 0,
+        "undated": 0
+      }
+    },
+    "standings": [
+      {
+        "address": "81b835c16e6da6152b4d9ebd7e55162f762767a1",
+        "blocks": 14486,
+        "sharePercent": 16.75,
+        "rank": 1,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/81b835c16e6da6152b4d9ebd7e55162f762767a1"
+      },
+      {
+        "address": "8a499c81cb6a8106933f66a6cfdd6ea6439575e3",
+        "blocks": 14262,
+        "sharePercent": 16.49,
+        "rank": 2,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/8a499c81cb6a8106933f66a6cfdd6ea6439575e3"
+      },
+      {
+        "address": "7ac8355c0ed1b6404da1ce7fe87a23394bab8056",
+        "blocks": 13670,
+        "sharePercent": 15.81,
+        "rank": 3,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/7ac8355c0ed1b6404da1ce7fe87a23394bab8056"
+      },
+      {
+        "address": "ca08120874f071739d932b24da41cc13299123b3",
+        "blocks": 10891,
+        "sharePercent": 12.59,
+        "rank": 4,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/ca08120874f071739d932b24da41cc13299123b3"
+      },
+      {
+        "address": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+        "blocks": 9352,
+        "sharePercent": 10.81,
+        "rank": 5,
+        "isSelf": true,
+        "url": "https://explore.xyo.network/xl1/sequence/address/2152e6aec996742fb6e52ae1aad87bd44f2ccc91"
+      },
+      {
+        "address": "fb4c535221f91c1811bd42f70b6ec305aa658551",
+        "blocks": 8989,
+        "sharePercent": 10.39,
+        "rank": 6,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/fb4c535221f91c1811bd42f70b6ec305aa658551"
+      },
+      {
+        "address": "a6567633ac83a7017f3a2ef20fbbed890a2adae9",
+        "blocks": 8639,
+        "sharePercent": 9.99,
+        "rank": 7,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/a6567633ac83a7017f3a2ef20fbbed890a2adae9"
+      },
+      {
+        "address": "30251291ac55017d90a3c892ab5604bdacf9bcde",
+        "blocks": 6187,
+        "sharePercent": 7.15,
+        "rank": 8,
+        "isSelf": false,
+        "url": "https://explore.xyo.network/xl1/sequence/address/30251291ac55017d90a3c892ab5604bdacf9bcde"
+      }
+    ],
+    "multiSigner": false
+  },
+  "race": {
+    "windowSeconds": 3600,
+    "built": 121,
+    "retries": 5,
+    "lost": {
+      "txAlreadyFinalized": 5,
+      "behindFinalizedHead": 7,
+      "blockNumberMismatch": 0
+    }
+  },
+  "operations": {
+    "score": 94,
+    "components": [
+      {
+        "label": "Latency",
+        "value": 100,
+        "why": "cycle p50 210ms vs a 1000ms budget"
+      },
+      {
+        "label": "Race health",
+        "value": 90,
+        "why": "12 of 121 builds rejected locally"
+      },
+      {
+        "label": "Win rate",
+        "value": 86,
+        "why": "10.81% of the chain against a 12.5% even split"
+      },
+      {
+        "label": "Reliability",
+        "value": 100,
+        "why": "no container restarts"
+      }
+    ],
+    "bottleneck": {
+      "key": "competition",
+      "text": "Head advanced first on 58% of rejections — we are being outrun, not failing."
+    }
+  },
+  "latency": {
+    "headFetchMinMs": 0,
+    "headFetchP50Ms": 67,
+    "headFetchP95Ms": 245,
+    "cycleP50Ms": 210,
+    "cycleP95Ms": 924,
+    "stages": {
+      "headFetch": 67,
+      "blockProduction": 129,
+      "mempoolTx": 125,
+      "mempoolBlocks": 125,
+      "submit": 133,
+      "timePayload": 272,
+      "rewardTransfers": 0
+    },
+    "samples": 5816
+  },
+  "trend": {
+    "daily": [
+      {
+        "day": "2026-09-23",
+        "blocks": 201,
+        "earned": 10050.0058
+      },
+      {
+        "day": "2026-09-24",
+        "blocks": 231,
+        "earned": 11550.013
+      },
+      {
+        "day": "2026-09-25",
+        "blocks": 268,
+        "earned": 13400.0134
+      },
+      {
+        "day": "2026-09-26",
+        "blocks": 229,
+        "earned": 11450.0156
+      },
+      {
+        "day": "2026-09-27",
+        "blocks": 313,
+        "earned": 15650.0209
+      },
+      {
+        "day": "2026-09-28",
+        "blocks": 254,
+        "earned": 12700.0107
+      },
+      {
+        "day": "2026-09-29",
+        "blocks": 117,
+        "earned": 5850.0025
+      },
+      {
+        "day": "2026-09-30",
+        "blocks": 356,
+        "earned": 17750.0256
+      },
+      {
+        "day": "2026-10-01",
+        "blocks": 325,
+        "earned": 16250.0257
+      },
+      {
+        "day": "2026-10-02",
+        "blocks": 431,
+        "earned": 21550.0369
+      },
+      {
+        "day": "2026-10-03",
+        "blocks": 462,
+        "earned": 23100.0385
+      },
+      {
+        "day": "2026-10-04",
+        "blocks": 45,
+        "earned": 2250.0037
+      },
+      {
+        "day": "2026-10-05",
+        "blocks": 410,
+        "earned": 20500.0339
+      },
+      {
+        "day": "2026-10-06",
+        "blocks": 466,
+        "earned": 23300.0387
+      },
+      {
+        "day": "2026-10-07",
+        "blocks": 667,
+        "earned": 33300.0562
+      },
+      {
+        "day": "2026-10-08",
+        "blocks": 830,
+        "earned": 41500.0685
+      },
+      {
+        "day": "2026-10-09",
+        "blocks": 195,
+        "earned": 9750.0165
+      }
+    ],
+    "retainDays": 30
+  },
+  "continuity": {
+    "windowHours": 168,
+    "hours": [
+      {
+        "t": 1790924400000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 23,
+        "sharePercent": 22.1
+      },
+      {
+        "t": 1790928000000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 26,
+        "sharePercent": 23
+      },
+      {
+        "t": 1790931600000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 16,
+        "sharePercent": 14
+      },
+      {
+        "t": 1790935200000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 11,
+        "sharePercent": 9.9
+      },
+      {
+        "t": 1790938800000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 12,
+        "sharePercent": 10.5
+      },
+      {
+        "t": 1790942400000,
+        "observed": true,
+        "chainBlocks": 105,
+        "wins": 18,
+        "sharePercent": 17.1
+      },
+      {
+        "t": 1790946000000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 21,
+        "sharePercent": 18.8
+      },
+      {
+        "t": 1790949600000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 19,
+        "sharePercent": 16.8
+      },
+      {
+        "t": 1790953200000,
+        "observed": true,
+        "chainBlocks": 116,
+        "wins": 16,
+        "sharePercent": 13.8
+      },
+      {
+        "t": 1790956800000,
+        "observed": true,
+        "chainBlocks": 126,
+        "wins": 20,
+        "sharePercent": 15.9
+      },
+      {
+        "t": 1790960400000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 14,
+        "sharePercent": 13.6
+      },
+      {
+        "t": 1790964000000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 12,
+        "sharePercent": 10.6
+      },
+      {
+        "t": 1790967600000,
+        "observed": true,
+        "chainBlocks": 124,
+        "wins": 23,
+        "sharePercent": 18.5
+      },
+      {
+        "t": 1790971200000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 19,
+        "sharePercent": 17.3
+      },
+      {
+        "t": 1790974800000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 17,
+        "sharePercent": 15.9
+      },
+      {
+        "t": 1790978400000,
+        "observed": true,
+        "chainBlocks": 106,
+        "wins": 10,
+        "sharePercent": 9.4
+      },
+      {
+        "t": 1790982000000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 15,
+        "sharePercent": 13.8
+      },
+      {
+        "t": 1790985600000,
+        "observed": true,
+        "chainBlocks": 118,
+        "wins": 14,
+        "sharePercent": 11.9
+      },
+      {
+        "t": 1790989200000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 16,
+        "sharePercent": 14.4
+      },
+      {
+        "t": 1790992800000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 12,
+        "sharePercent": 11
+      },
+      {
+        "t": 1790996400000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 18,
+        "sharePercent": 16.1
+      },
+      {
+        "t": 1791000000000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 16,
+        "sharePercent": 15.4
+      },
+      {
+        "t": 1791003600000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 14,
+        "sharePercent": 12.8
+      },
+      {
+        "t": 1791007200000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 18,
+        "sharePercent": 16.2
+      },
+      {
+        "t": 1791010800000,
+        "observed": true,
+        "chainBlocks": 105,
+        "wins": 20,
+        "sharePercent": 19
+      },
+      {
+        "t": 1791014400000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 18,
+        "sharePercent": 15.8
+      },
+      {
+        "t": 1791018000000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 23,
+        "sharePercent": 20
+      },
+      {
+        "t": 1791021600000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 21,
+        "sharePercent": 18.8
+      },
+      {
+        "t": 1791025200000,
+        "observed": true,
+        "chainBlocks": 92,
+        "wins": 20,
+        "sharePercent": 21.7
+      },
+      {
+        "t": 1791028800000,
+        "observed": true,
+        "chainBlocks": 118,
+        "wins": 19,
+        "sharePercent": 16.1
+      },
+      {
+        "t": 1791032400000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 12,
+        "sharePercent": 10.9
+      },
+      {
+        "t": 1791036000000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 17,
+        "sharePercent": 15.6
+      },
+      {
+        "t": 1791039600000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 16,
+        "sharePercent": 13.9
+      },
+      {
+        "t": 1791043200000,
+        "observed": true,
+        "chainBlocks": 122,
+        "wins": 18,
+        "sharePercent": 14.8
+      },
+      {
+        "t": 1791046800000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 15,
+        "sharePercent": 13
+      },
+      {
+        "t": 1791050400000,
+        "observed": true,
+        "chainBlocks": 121,
+        "wins": 16,
+        "sharePercent": 13.2
+      },
+      {
+        "t": 1791054000000,
+        "observed": true,
+        "chainBlocks": 118,
+        "wins": 22,
+        "sharePercent": 18.6
+      },
+      {
+        "t": 1791057600000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 22,
+        "sharePercent": 19.1
+      },
+      {
+        "t": 1791061200000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 16,
+        "sharePercent": 13.9
+      },
+      {
+        "t": 1791064800000,
+        "observed": true,
+        "chainBlocks": 124,
+        "wins": 22,
+        "sharePercent": 17.7
+      },
+      {
+        "t": 1791068400000,
+        "observed": true,
+        "chainBlocks": 118,
+        "wins": 10,
+        "sharePercent": 8.5
+      },
+      {
+        "t": 1791072000000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 14,
+        "sharePercent": 13
+      },
+      {
+        "t": 1791075600000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 11,
+        "sharePercent": 10.3
+      },
+      {
+        "t": 1791079200000,
+        "observed": true,
+        "chainBlocks": 100,
+        "wins": 13,
+        "sharePercent": 13
+      },
+      {
+        "t": 1791082800000,
+        "observed": false
+      },
+      {
+        "t": 1791086400000,
+        "observed": false
+      },
+      {
+        "t": 1791090000000,
+        "observed": false
+      },
+      {
+        "t": 1791093600000,
+        "observed": false
+      },
+      {
+        "t": 1791097200000,
+        "observed": false
+      },
+      {
+        "t": 1791100800000,
+        "observed": false
+      },
+      {
+        "t": 1791104400000,
+        "observed": false
+      },
+      {
+        "t": 1791108000000,
+        "observed": false
+      },
+      {
+        "t": 1791111600000,
+        "observed": false
+      },
+      {
+        "t": 1791115200000,
+        "observed": false
+      },
+      {
+        "t": 1791118800000,
+        "observed": false
+      },
+      {
+        "t": 1791122400000,
+        "observed": false
+      },
+      {
+        "t": 1791126000000,
+        "observed": false
+      },
+      {
+        "t": 1791129600000,
+        "observed": false
+      },
+      {
+        "t": 1791133200000,
+        "observed": false
+      },
+      {
+        "t": 1791136800000,
+        "observed": false
+      },
+      {
+        "t": 1791140400000,
+        "observed": false
+      },
+      {
+        "t": 1791144000000,
+        "observed": false
+      },
+      {
+        "t": 1791147600000,
+        "observed": false
+      },
+      {
+        "t": 1791151200000,
+        "observed": false
+      },
+      {
+        "t": 1791154800000,
+        "observed": false
+      },
+      {
+        "t": 1791158400000,
+        "observed": false
+      },
+      {
+        "t": 1791162000000,
+        "observed": true,
+        "chainBlocks": 26,
+        "wins": 4,
+        "sharePercent": 15.4
+      },
+      {
+        "t": 1791165600000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 18,
+        "sharePercent": 15.8
+      },
+      {
+        "t": 1791169200000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 17,
+        "sharePercent": 15.3
+      },
+      {
+        "t": 1791172800000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 13,
+        "sharePercent": 11.5
+      },
+      {
+        "t": 1791176400000,
+        "observed": true,
+        "chainBlocks": 106,
+        "wins": 15,
+        "sharePercent": 14.2
+      },
+      {
+        "t": 1791180000000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 7,
+        "sharePercent": 6.1
+      },
+      {
+        "t": 1791183600000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 7,
+        "sharePercent": 6.4
+      },
+      {
+        "t": 1791187200000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 13,
+        "sharePercent": 11.6
+      },
+      {
+        "t": 1791190800000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 23,
+        "sharePercent": 20.2
+      },
+      {
+        "t": 1791194400000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 13,
+        "sharePercent": 11.5
+      },
+      {
+        "t": 1791198000000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 11,
+        "sharePercent": 9.9
+      },
+      {
+        "t": 1791201600000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 20,
+        "sharePercent": 18
+      },
+      {
+        "t": 1791205200000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 16,
+        "sharePercent": 14.4
+      },
+      {
+        "t": 1791208800000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 15,
+        "sharePercent": 13
+      },
+      {
+        "t": 1791212400000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 16,
+        "sharePercent": 14.2
+      },
+      {
+        "t": 1791216000000,
+        "observed": true,
+        "chainBlocks": 118,
+        "wins": 18,
+        "sharePercent": 15.3
+      },
+      {
+        "t": 1791219600000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 22,
+        "sharePercent": 19.8
+      },
+      {
+        "t": 1791223200000,
+        "observed": true,
+        "chainBlocks": 106,
+        "wins": 17,
+        "sharePercent": 16
+      },
+      {
+        "t": 1791226800000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 20,
+        "sharePercent": 18.7
+      },
+      {
+        "t": 1791230400000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 24,
+        "sharePercent": 21.4
+      },
+      {
+        "t": 1791234000000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 20,
+        "sharePercent": 17.9
+      },
+      {
+        "t": 1791237600000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 14,
+        "sharePercent": 12.6
+      },
+      {
+        "t": 1791241200000,
+        "observed": true,
+        "chainBlocks": 123,
+        "wins": 23,
+        "sharePercent": 18.7
+      },
+      {
+        "t": 1791244800000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 19,
+        "sharePercent": 17
+      },
+      {
+        "t": 1791248400000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 10,
+        "sharePercent": 9.3
+      },
+      {
+        "t": 1791252000000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 11,
+        "sharePercent": 10.2
+      },
+      {
+        "t": 1791255600000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 16,
+        "sharePercent": 14.3
+      },
+      {
+        "t": 1791259200000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 19,
+        "sharePercent": 17.4
+      },
+      {
+        "t": 1791262800000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 19,
+        "sharePercent": 17.1
+      },
+      {
+        "t": 1791266400000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 14,
+        "sharePercent": 12.8
+      },
+      {
+        "t": 1791270000000,
+        "observed": true,
+        "chainBlocks": 102,
+        "wins": 15,
+        "sharePercent": 14.7
+      },
+      {
+        "t": 1791273600000,
+        "observed": true,
+        "chainBlocks": 113,
+        "wins": 21,
+        "sharePercent": 18.6
+      },
+      {
+        "t": 1791277200000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 19,
+        "sharePercent": 17.6
+      },
+      {
+        "t": 1791280800000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 18,
+        "sharePercent": 16.8
+      },
+      {
+        "t": 1791284400000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 17,
+        "sharePercent": 16.3
+      },
+      {
+        "t": 1791288000000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 12,
+        "sharePercent": 11.2
+      },
+      {
+        "t": 1791291600000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 23,
+        "sharePercent": 21.3
+      },
+      {
+        "t": 1791295200000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 22,
+        "sharePercent": 19.6
+      },
+      {
+        "t": 1791298800000,
+        "observed": true,
+        "chainBlocks": 116,
+        "wins": 22,
+        "sharePercent": 19
+      },
+      {
+        "t": 1791302400000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 26,
+        "sharePercent": 24.3
+      },
+      {
+        "t": 1791306000000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 15,
+        "sharePercent": 13.9
+      },
+      {
+        "t": 1791309600000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 13,
+        "sharePercent": 11.8
+      },
+      {
+        "t": 1791313200000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 17,
+        "sharePercent": 15.6
+      },
+      {
+        "t": 1791316800000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 13,
+        "sharePercent": 12
+      },
+      {
+        "t": 1791320400000,
+        "observed": true,
+        "chainBlocks": 102,
+        "wins": 12,
+        "sharePercent": 11.8
+      },
+      {
+        "t": 1791324000000,
+        "observed": true,
+        "chainBlocks": 108,
+        "wins": 20,
+        "sharePercent": 18.5
+      },
+      {
+        "t": 1791327600000,
+        "observed": true,
+        "chainBlocks": 114,
+        "wins": 10,
+        "sharePercent": 8.8
+      },
+      {
+        "t": 1791331200000,
+        "observed": true,
+        "chainBlocks": 116,
+        "wins": 14,
+        "sharePercent": 12.1
+      },
+      {
+        "t": 1791334800000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 18,
+        "sharePercent": 17.3
+      },
+      {
+        "t": 1791338400000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 22,
+        "sharePercent": 20.6
+      },
+      {
+        "t": 1791342000000,
+        "observed": true,
+        "chainBlocks": 99,
+        "wins": 20,
+        "sharePercent": 20.2
+      },
+      {
+        "t": 1791345600000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 25,
+        "sharePercent": 24.3
+      },
+      {
+        "t": 1791349200000,
+        "observed": true,
+        "chainBlocks": 100,
+        "wins": 24,
+        "sharePercent": 24
+      },
+      {
+        "t": 1791352800000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 25,
+        "sharePercent": 24.3
+      },
+      {
+        "t": 1791356400000,
+        "observed": true,
+        "chainBlocks": 102,
+        "wins": 19,
+        "sharePercent": 18.6
+      },
+      {
+        "t": 1791360000000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 30,
+        "sharePercent": 28.8
+      },
+      {
+        "t": 1791363600000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 29,
+        "sharePercent": 28.7
+      },
+      {
+        "t": 1791367200000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 29,
+        "sharePercent": 27.1
+      },
+      {
+        "t": 1791370800000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 29,
+        "sharePercent": 27.1
+      },
+      {
+        "t": 1791374400000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 25,
+        "sharePercent": 24
+      },
+      {
+        "t": 1791378000000,
+        "observed": true,
+        "chainBlocks": 98,
+        "wins": 26,
+        "sharePercent": 26.5
+      },
+      {
+        "t": 1791381600000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 29,
+        "sharePercent": 28.2
+      },
+      {
+        "t": 1791385200000,
+        "observed": true,
+        "chainBlocks": 99,
+        "wins": 26,
+        "sharePercent": 26.3
+      },
+      {
+        "t": 1791388800000,
+        "observed": true,
+        "chainBlocks": 111,
+        "wins": 26,
+        "sharePercent": 23.4
+      },
+      {
+        "t": 1791392400000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 26,
+        "sharePercent": 25.7
+      },
+      {
+        "t": 1791396000000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 32,
+        "sharePercent": 31.1
+      },
+      {
+        "t": 1791399600000,
+        "observed": true,
+        "chainBlocks": 104,
+        "wins": 26,
+        "sharePercent": 25
+      },
+      {
+        "t": 1791403200000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 26,
+        "sharePercent": 25.2
+      },
+      {
+        "t": 1791406800000,
+        "observed": true,
+        "chainBlocks": 102,
+        "wins": 23,
+        "sharePercent": 22.5
+      },
+      {
+        "t": 1791410400000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 22,
+        "sharePercent": 21.4
+      },
+      {
+        "t": 1791414000000,
+        "observed": true,
+        "chainBlocks": 100,
+        "wins": 22,
+        "sharePercent": 22
+      },
+      {
+        "t": 1791417600000,
+        "observed": true,
+        "chainBlocks": 103,
+        "wins": 22,
+        "sharePercent": 21.4
+      },
+      {
+        "t": 1791421200000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 24,
+        "sharePercent": 23.8
+      },
+      {
+        "t": 1791424800000,
+        "observed": true,
+        "chainBlocks": 96,
+        "wins": 33,
+        "sharePercent": 34.4
+      },
+      {
+        "t": 1791428400000,
+        "observed": true,
+        "chainBlocks": 98,
+        "wins": 36,
+        "sharePercent": 36.7
+      },
+      {
+        "t": 1791432000000,
+        "observed": true,
+        "chainBlocks": 96,
+        "wins": 27,
+        "sharePercent": 28.1
+      },
+      {
+        "t": 1791435600000,
+        "observed": true,
+        "chainBlocks": 99,
+        "wins": 34,
+        "sharePercent": 34.3
+      },
+      {
+        "t": 1791439200000,
+        "observed": true,
+        "chainBlocks": 97,
+        "wins": 28,
+        "sharePercent": 28.9
+      },
+      {
+        "t": 1791442800000,
+        "observed": true,
+        "chainBlocks": 102,
+        "wins": 29,
+        "sharePercent": 28.4
+      },
+      {
+        "t": 1791446400000,
+        "observed": true,
+        "chainBlocks": 95,
+        "wins": 29,
+        "sharePercent": 30.5
+      },
+      {
+        "t": 1791450000000,
+        "observed": true,
+        "chainBlocks": 92,
+        "wins": 25,
+        "sharePercent": 27.2
+      },
+      {
+        "t": 1791453600000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 34,
+        "sharePercent": 33.7
+      },
+      {
+        "t": 1791457200000,
+        "observed": true,
+        "chainBlocks": 98,
+        "wins": 31,
+        "sharePercent": 31.6
+      },
+      {
+        "t": 1791460800000,
+        "observed": true,
+        "chainBlocks": 92,
+        "wins": 28,
+        "sharePercent": 30.4
+      },
+      {
+        "t": 1791464400000,
+        "observed": true,
+        "chainBlocks": 97,
+        "wins": 28,
+        "sharePercent": 28.9
+      },
+      {
+        "t": 1791468000000,
+        "observed": true,
+        "chainBlocks": 93,
+        "wins": 34,
+        "sharePercent": 36.6
+      },
+      {
+        "t": 1791471600000,
+        "observed": true,
+        "chainBlocks": 98,
+        "wins": 36,
+        "sharePercent": 36.7
+      },
+      {
+        "t": 1791475200000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 27,
+        "sharePercent": 26.7
+      },
+      {
+        "t": 1791478800000,
+        "observed": true,
+        "chainBlocks": 115,
+        "wins": 31,
+        "sharePercent": 27
+      },
+      {
+        "t": 1791482400000,
+        "observed": true,
+        "chainBlocks": 99,
+        "wins": 25,
+        "sharePercent": 25.3
+      },
+      {
+        "t": 1791486000000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 36,
+        "sharePercent": 32.7
+      },
+      {
+        "t": 1791489600000,
+        "observed": true,
+        "chainBlocks": 109,
+        "wins": 31,
+        "sharePercent": 28.4
+      },
+      {
+        "t": 1791493200000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 29,
+        "sharePercent": 27.1
+      },
+      {
+        "t": 1791496800000,
+        "observed": true,
+        "chainBlocks": 101,
+        "wins": 34,
+        "sharePercent": 33.7
+      },
+      {
+        "t": 1791500400000,
+        "observed": true,
+        "chainBlocks": 107,
+        "wins": 34,
+        "sharePercent": 31.8
+      },
+      {
+        "t": 1791504000000,
+        "observed": true,
+        "chainBlocks": 105,
+        "wins": 33,
+        "sharePercent": 31.4
+      },
+      {
+        "t": 1791507600000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 32,
+        "sharePercent": 29.1
+      },
+      {
+        "t": 1791511200000,
+        "observed": true,
+        "chainBlocks": 112,
+        "wins": 25,
+        "sharePercent": 22.3
+      },
+      {
+        "t": 1791514800000,
+        "observed": true,
+        "chainBlocks": 106,
+        "wins": 27,
+        "sharePercent": 25.5
+      },
+      {
+        "t": 1791518400000,
+        "observed": true,
+        "chainBlocks": 106,
+        "wins": 25,
+        "sharePercent": 23.6
+      },
+      {
+        "t": 1791522000000,
+        "observed": true,
+        "chainBlocks": 110,
+        "wins": 25,
+        "sharePercent": 22.7
+      },
+      {
+        "t": 1791525600000,
+        "observed": true,
+        "chainBlocks": 20,
+        "wins": 5,
+        "sharePercent": 25
+      }
+    ],
+    "observedHours": 147,
+    "unobservedHours": 22,
+    "producingHours": 147,
+    "missedHours": 0,
+    "producingPercent": 100,
+    "longestMissedHours": 0
+  },
+  "movement": {
+    "comparable": true,
+    "rows": [
+      {
+        "address": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+        "url": "https://explore.xyo.network/xl1/sequence/address/2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+        "blocks": 2991,
+        "previousBlocks": 2074,
+        "sharePercent": 16.86,
+        "previousSharePercent": 12.88,
+        "deltaPercent": 3.98
+      },
+      {
+        "address": "81b835c16e6da6152b4d9ebd7e55162f762767a1",
+        "url": "https://explore.xyo.network/xl1/sequence/address/81b835c16e6da6152b4d9ebd7e55162f762767a1",
+        "blocks": 2764,
+        "previousBlocks": 1963,
+        "sharePercent": 15.58,
+        "previousSharePercent": 12.19,
+        "deltaPercent": 3.39
+      },
+      {
+        "address": "7ac8355c0ed1b6404da1ce7fe87a23394bab8056",
+        "url": "https://explore.xyo.network/xl1/sequence/address/7ac8355c0ed1b6404da1ce7fe87a23394bab8056",
+        "blocks": 2531,
+        "previousBlocks": 1767,
+        "sharePercent": 14.27,
+        "previousSharePercent": 10.97,
+        "deltaPercent": 3.29
+      },
+      {
+        "address": "8a499c81cb6a8106933f66a6cfdd6ea6439575e3",
+        "url": "https://explore.xyo.network/xl1/sequence/address/8a499c81cb6a8106933f66a6cfdd6ea6439575e3",
+        "blocks": 2608,
+        "previousBlocks": 1929,
+        "sharePercent": 14.7,
+        "previousSharePercent": 11.98,
+        "deltaPercent": 2.72
+      },
+      {
+        "address": "a6567633ac83a7017f3a2ef20fbbed890a2adae9",
+        "url": "https://explore.xyo.network/xl1/sequence/address/a6567633ac83a7017f3a2ef20fbbed890a2adae9",
+        "blocks": 2233,
+        "previousBlocks": 2359,
+        "sharePercent": 12.59,
+        "previousSharePercent": 14.65,
+        "deltaPercent": -2.06
+      },
+      {
+        "address": "30251291ac55017d90a3c892ab5604bdacf9bcde",
+        "url": "https://explore.xyo.network/xl1/sequence/address/30251291ac55017d90a3c892ab5604bdacf9bcde",
+        "blocks": 1268,
+        "previousBlocks": 1602,
+        "sharePercent": 7.15,
+        "previousSharePercent": 9.95,
+        "deltaPercent": -2.8
+      },
+      {
+        "address": "ca08120874f071739d932b24da41cc13299123b3",
+        "url": "https://explore.xyo.network/xl1/sequence/address/ca08120874f071739d932b24da41cc13299123b3",
+        "blocks": 1928,
+        "previousBlocks": 2397,
+        "sharePercent": 10.87,
+        "previousSharePercent": 14.88,
+        "deltaPercent": -4.02
+      },
+      {
+        "address": "fb4c535221f91c1811bd42f70b6ec305aa658551",
+        "url": "https://explore.xyo.network/xl1/sequence/address/fb4c535221f91c1811bd42f70b6ec305aa658551",
+        "blocks": 1418,
+        "previousBlocks": 2013,
+        "sharePercent": 7.99,
+        "previousSharePercent": 12.5,
+        "deltaPercent": -4.51
+      }
+    ],
+    "seenToday": 5,
+    "seenThisWeek": 8,
+    "arrived": [],
+    "quiet": [],
+    "quietAfterDays": 7
+  },
+  "price": {
+    "marketNote": "These are sequence balances — the test network — so they are not the traded asset. The price above is real XL1; this balance is not.",
+    "currency": "usd",
+    "value": 0.00020054,
+    "change24h": -2.05,
+    "id": "xl1"
+  },
+  "build": {
+    "version": "2.3.0",
+    "commit": "637eae2a-dirty",
+    "source": "https://github.com/LewSales/xl1-block-producer-windows",
+    "brandName": "WinLEW",
+    "brandUrl": "https://winlew.co",
+    "upstreamName": "XYO Network",
+    "upstreamUrl": "https://xyo.network"
+  }
+}
