@@ -201,5 +201,15 @@ def main():
     sys.exit(0 if all(ok is not False for ok, _, _ in rows) else 1)
 
 
+def utf8_output():
+    # On Windows, piped or redirected output (and terminals such as Git Bash) uses the ANSI
+    # code page, which cannot encode the → … ≤ in this report. The crash would exit 1, the
+    # same code as [FAIL], so write UTF-8 instead. Checks and exit codes are unchanged.
+    for s in (sys.stdout, sys.stderr):
+        if hasattr(s, 'reconfigure') and (s.encoding or '').lower().replace('-', '') != 'utf8':
+            s.reconfigure(encoding='utf-8')
+
+
 if __name__ == '__main__':
+    utf8_output()
     main()
