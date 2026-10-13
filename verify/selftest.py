@@ -25,8 +25,11 @@ CASES = [
 
 failures = 0
 for path, want_code, must, what in CASES:
+    # No PYTHONIOENCODING override: the verifier must produce UTF-8 on its own, as it does for
+    # someone piping it on a stock Windows terminal.
+    env = {k: v for k, v in os.environ.items() if k not in ('PYTHONIOENCODING', 'PYTHONUTF8')}
     p = subprocess.run([sys.executable, os.path.join(HERE, 'verify_evidence.py'), os.path.join(ROOT, path)],
-                       capture_output=True, text=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+                       capture_output=True, text=True, encoding='utf-8', env=env)
     ok = p.returncode == want_code and must in p.stdout
     failures += not ok
     print(f"{'PASS' if ok else 'FAIL'}  {what}: exit {p.returncode} (expected {want_code})" + ('' if ok else f"\n      expected to see: {must}\n      output: {p.stdout.strip()[:400]}"))
