@@ -25,11 +25,22 @@ CASES = [
     ('verify/fixtures/winlew/synthetic-pending.json', 0, '[ok] No member identifiers in the published content', 'a WinLEW game result checks out before anchoring'),
     ('verify/fixtures/winlew/leaks-member-id.json', 1, '[FAIL] No member identifiers in the published content', 'a Discord id and a wallet in the content are refused'),
 ]
+# Run every case as a default Windows pipe would (cp1252), so an unprintable character fails
+# the self-test instead of crashing a verifier on someone's PC. The output is read as UTF-8.
+LEGACY = {**os.environ, 'PYTHONIOENCODING': 'cp1252'}
+CASES.append(('verify/fixtures/winlew/synthetic-pending.json', 0, '[ok] Authorization covers this record: ', 'a report with arrows prints on a cp1252 (Windows default) stream'))
+
+# This report prints the verifier's output, so it needs the same guard (see utf8_output there).
+for stream in (sys.stdout, sys.stderr):
+    try:
+        '→…≤�'.encode(stream.encoding or 'ascii')
+    except (UnicodeEncodeError, LookupError):
+        stream.reconfigure(encoding='utf-8')
 
 failures = 0
 for path, want_code, must, what in CASES:
     p = subprocess.run([sys.executable, os.path.join(HERE, 'verify_evidence.py'), os.path.join(ROOT, path)],
-                       capture_output=True, text=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+                       capture_output=True, text=True, encoding='utf-8', errors='replace', env=LEGACY)
     ok = p.returncode == want_code and must in p.stdout
     failures += not ok
     print(f"{'PASS' if ok else 'FAIL'}  {what}: exit {p.returncode} (expected {want_code})" + ('' if ok else f"\n      expected to see: {must}\n      output: {p.stdout.strip()[:400]}"))
