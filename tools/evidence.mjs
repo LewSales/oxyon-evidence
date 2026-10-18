@@ -7,6 +7,10 @@
 //
 //   node tools/evidence.mjs new-key   --out <file>
 //   node tools/evidence.mjs address   --key-file <file>          (the address to fund; no phrase shown)
+//
+// Anywhere a key file is asked for, `prompt` may be given instead: the phrase is then typed
+// at a hidden prompt, used in memory, and never written anywhere -- the way Oxyon's keys are
+// kept off disk.
 //   node tools/evidence.mjs authorize --issuer-file <file> --delegate <address> --claims <a,b>
 //                                     [--network sequence] [--until 2027-01-31] [--send]
 //   node tools/evidence.mjs anchor    --key-file <file> --authorization <hash> --content <file.json>
@@ -49,11 +53,37 @@ function die(msg) { console.error(`✗ ${msg}`); process.exit(2) }
 const addr = (v) => { const a = String(v ?? '').toLowerCase().replace(/^0x/, ''); if (!/^[0-9a-f]{40}$/.test(a)) die(`not an address: ${v}`); return a }
 
 // ── keys ──
-function readPhrase(file) {
+/** Ask for a recovery phrase on the terminal with nothing echoed. It lives in memory only. */
+function askHidden(question) {
+  if (!process.stdin.isTTY) die('a phrase prompt needs a terminal; run this command yourself in PowerShell or a terminal window')
+  return new Promise((done) => {
+    process.stdout.write(question)
+    const stdin = process.stdin
+    let typed = ''
+    stdin.setRawMode(true); stdin.resume(); stdin.setEncoding('utf8')
+    const onKey = (chunk) => {
+      for (const ch of chunk) {
+        if (ch === '\u0003') { process.stdout.write('\n'); process.exit(130) }                      // Ctrl+C
+        if (ch === '\r' || ch === '\n' || ch === '\u0004') {
+          stdin.setRawMode(false); stdin.pause(); stdin.off('data', onKey); process.stdout.write('\n'); done(typed); return
+        }
+        if (ch === '\u0008' || ch === '\u007f') { typed = typed.slice(0, -1); continue }             // Backspace
+        typed += ch
+      }
+    }
+    stdin.on('data', onKey)
+  })
+}
+
+async function readPhrase(file) {
+  if (file === 'prompt') return checkPhrase(await askHidden('Recovery phrase (typing is hidden, nothing is saved): '), 'the phrase you typed')
   const text = readFileSync(file, 'utf8')
   const m = text.match(/^\s*[A-Za-z_][A-Za-z0-9_]*\s*=\s*["']([^"'\r\n]+)["']\s*;?\s*$/m)
-  const phrase = (m ? m[1] : text).trim().replace(/\s+/g, ' ')
-  if (![12, 15, 18, 21, 24].includes(phrase.split(' ').length)) die(`${file} does not hold a 12–24 word recovery phrase`)
+  return checkPhrase(m ? m[1] : text, file)
+}
+function checkPhrase(raw, where) {
+  const phrase = String(raw).trim().toLowerCase().replace(/\s+/g, ' ')
+  if (![12, 15, 18, 21, 24].includes(phrase.split(' ').length)) die(`${where} is not a 12–24 word recovery phrase`)
   return phrase
 }
 const sdkPath = () => resolve(process.env.XL1_SDK_MODULE || DEFAULT_SDK)
@@ -64,7 +94,7 @@ async function loadSdk() {
   return import(pathToFileURL(sdkPath()).href)
 }
 async function accountFrom(sdk, file) {
-  const base = await sdk.generateXyoBaseWalletFromPhrase(readPhrase(file))
+  const base = await sdk.generateXyoBaseWalletFromPhrase(await readPhrase(file))
   return base.derivePath('0')
 }
 
