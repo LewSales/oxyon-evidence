@@ -22,6 +22,7 @@ is nothing on Mainnet.
 | `verify/sigcheck.mjs` | Signature check using XYO's own published validator |
 | `verification/` | Oxyon's own verification runs, for reference (not independent) |
 | `VERIFY.md` | Step-by-step reproduction, by hand or with the scripts |
+| `tools/evidence.mjs` + `tools/README.md` | Make a key, authorise it, anchor a record; also the WinLEW claim types and their privacy rule |
 | `verify/fixtures/` + `verify/selftest.py` | Deliberately broken copies (**not evidence**) that the verifier must reject |
 | `LICENSING.md`, `LICENSE-CC0`, `verify/LICENSE` | CC0 1.0 for the evidence, MIT for the scripts |
 

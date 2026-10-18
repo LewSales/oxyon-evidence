@@ -21,6 +21,9 @@ CASES = [
     ('verify/fixtures/tampered-sha256.json', 1, '[FAIL] Snapshot bytes match the record', 'committed SHA-256 altered'),
     ('verify/fixtures/false-receipt.json', 1, '[FAIL] Published receipt matches the chain (anchorTx)', 'receipt names the wrong block producer'),
     ('verify/fixtures/missing-authorization.json', 2, '[INCOMPLETE]', 'authorization file missing'),
+    # WinLEW claims (synthetic, never anchored): content archived in verify/fixtures/winlew/blobs/.
+    ('verify/fixtures/winlew/synthetic-pending.json', 0, '[ok] No member identifiers in the published content', 'a WinLEW game result checks out before anchoring'),
+    ('verify/fixtures/winlew/leaks-member-id.json', 1, '[FAIL] No member identifiers in the published content', 'a Discord id and a wallet in the content are refused'),
 ]
 
 failures = 0

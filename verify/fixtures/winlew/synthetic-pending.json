@@ -1,0 +1,65 @@
+{
+  "authorization": {
+    "schema": "oxyon.evidence.authorization.v1",
+    "issuer": "1111111111111111111111111111111111111111",
+    "delegate": "2222222222222222222222222222222222222222",
+    "role": "anchorer",
+    "scope": {
+      "claims": [
+        "winlew.game.result",
+        "winlew.reward.trail"
+      ],
+      "recordSchema": "oxyon.evidence.record.v1",
+      "network": {
+        "id": "sequence",
+        "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc"
+      }
+    },
+    "validFrom": 1790000000000,
+    "validUntil": 1830000000000,
+    "statement": "FIXTURE ONLY: not an authorization.",
+    "doesNotAuthorise": "Anything.",
+    "revocation": "n/a",
+    "version": 1
+  },
+  "record": {
+    "schema": "oxyon.evidence.record.v1",
+    "claim": {
+      "type": "winlew.game.result",
+      "statement": "FIXTURE ONLY: a synthetic CryptoSpades result."
+    },
+    "subject": {
+      "kind": "winlew-game",
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc"
+    },
+    "source": {
+      "kind": "archived",
+      "path": "blobs/sha256/6e/6efeb3dd401faa0bc7192a2c7d9cc7d890f0b0c897d50ff68c2d25eb4b88bf9c.json",
+      "publisher": "fixture"
+    },
+    "content": {
+      "mediaType": "application/json",
+      "algorithm": "sha256",
+      "canonicalization": "none",
+      "sha256": "6efeb3dd401faa0bc7192a2c7d9cc7d890f0b0c897d50ff68c2d25eb4b88bf9c",
+      "bytes": 464
+    },
+    "observedAt": 1792360000000,
+    "issuedAt": 1792360000000,
+    "issuer": "1111111111111111111111111111111111111111",
+    "anchoredBy": "2222222222222222222222222222222222222222",
+    "authorization": "d535e113c1e27485e769f9e5aa5db8113d2023f339351e7714b5916a6eafe08e",
+    "establishes": "fixture",
+    "doesNotEstablish": "fixture",
+    "version": 1
+  },
+  "batch": {
+    "schema": "oxyon.geoproof.anchor.batch.v1",
+    "proofHashes": [
+      "f9bacdd59c93109c96e8c4be42f4f6873faf9e8a3e97bef5d0ff0219e9845f7c"
+    ],
+    "network": "xl1:sequence:4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "anchoredAt": 1792360000000
+  }
+}
