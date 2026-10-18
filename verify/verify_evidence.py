@@ -84,6 +84,40 @@ def tx_on_chain(net, tx_hash):
     }
 
 
+def find_root(path):
+    """The nearest folder above `path` holding blobs/ (the repository root), else the file's own."""
+    import os
+    here = os.path.dirname(os.path.abspath(path))
+    d = here
+    while True:
+        if os.path.isdir(os.path.join(d, 'blobs')):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return here
+        d = parent
+
+
+def member_identifiers(value, path='content'):
+    """Anything in a WinLEW record's content that looks like a person: a 17-20 digit Discord id,
+    or a 40-hex XL1/EVM address. Salted commitments are 64-hex, so they never match."""
+    import re
+    found = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            found += member_identifiers(v, f'{path}.{k}')
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            found += member_identifiers(v, f'{path}[{i}]')
+    elif isinstance(value, (str, int)) and not isinstance(value, bool):
+        t = str(value)
+        if re.fullmatch(r'\d{17,20}', t):
+            found.append(f'{path} (a Discord-style id)')
+        elif re.fullmatch(r'(0x)?[0-9a-fA-F]{40}', t):
+            found.append(f'{path} (an address)')
+    return found
+
+
 def load_repo_record(path):
     """Repository mode: a published record file {record, batch, receipt}. The authorization and its
     receipt are found in keys/ by hash; the transaction hashes come from the receipts, which are
@@ -122,16 +156,36 @@ def main():
             bundle[field] = {'network': bundle['record']['subject']['network'], 'hash': sys.argv[sys.argv.index(flag) + 1].lower()}
     auth, record, batch = bundle['authorization'], bundle['record'], bundle['batch']
 
+    import os
+    # The archive (blobs/) sits at the repository root; a bundle outside the repository is
+    # read beside the folders above it, so an archived source is found wherever this runs.
+    root = bundle.get('root') or find_root(sys.argv[1])
     want = record['content']['sha256']
-    try:
-        raw, where = fetch(record['source']['url']), 'GitHub at the pinned commit'
-    except Exception:
-        import os
-        blob = os.path.join(bundle.get('root', '.'), 'blobs', 'sha256', want[:2], want + '.json')
-        raw, where = (open(blob, 'rb').read(), 'archived copy (GitHub unavailable)') if os.path.exists(blob) else (b'', 'nowhere: source unavailable')
+    src = record.get('source') or {}
+    blob = os.path.join(root, 'blobs', 'sha256', want[:2], want + '.json')
+    if src.get('url'):
+        try:
+            raw, where = fetch(src['url']), 'GitHub at the pinned commit'
+        except Exception:
+            raw, where = (open(blob, 'rb').read(), 'archived copy (GitHub unavailable)') if os.path.exists(blob) else (b'', 'nowhere: source unavailable')
+    else:
+        # A record with no public source (a WinLEW game result or reward trail): the archived
+        # copy IS its source, published beside the record so the hash can be recomputed.
+        raw, where = (open(blob, 'rb').read(), "the archived copy, this record's only source") if os.path.exists(blob) else (b'', 'nowhere: the archived copy is missing')
     sha = hashlib.sha256(raw).hexdigest()
+    commit = f", commit {src['commit'][:10]}" if src.get('commit') else ''
     add(sha == want and len(raw) == record['content']['bytes'],
-        'Snapshot bytes match the record', f"{len(raw)} bytes from {where}, commit {record['source']['commit'][:10]}, sha256 {sha[:16]}…")
+        'Snapshot bytes match the record', f"{len(raw)} bytes from {where}{commit}, sha256 {sha[:16]}…")
+
+    # WinLEW claims describe members' activity, so their published content may carry only
+    # salted commitments -- never a Discord ID, a WinLEW account id or a wallet address.
+    if record['claim']['type'].startswith('winlew.') and raw:
+        try:
+            leaks = member_identifiers(json.loads(raw.decode('utf-8')))
+        except ValueError:
+            leaks = ['content is not JSON']
+        add(not leaks, 'No member identifiers in the published content',
+            'only salted commitments' if not leaks else f"found: {', '.join(leaks[:3])}")
 
     rh, bh, ah = xyo_hash(record), xyo_hash(batch), xyo_hash(auth)
     add(rh in batch['proofHashes'], 'Record is in the batch', f'record {rh[:16]}…')
