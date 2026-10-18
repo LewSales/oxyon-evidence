@@ -8,6 +8,7 @@
 //   node tools/evidence.mjs new-key   --out <file>
 //   node tools/evidence.mjs address   --key-file <file>          (the address to fund; no phrase shown)
 //
+// --account N picks account N of the phrase (default 0).
 // Anywhere a key file is asked for, `prompt` may be given instead: the phrase is then typed
 // at a hidden prompt, used in memory, and never written anywhere -- the way Oxyon's keys are
 // kept off disk.
@@ -93,9 +94,13 @@ async function loadSdk() {
   if (!existsSync(sdkPath())) die(`XL1 SDK not found at ${sdkPath()}; set XL1_SDK_MODULE`)
   return import(pathToFileURL(sdkPath()).href)
 }
+// One phrase can hold several keys (account 0, 1, 2 …, path m/44'/60'/0'/0/N): Oxyon's identity
+// key and its anchoring key are accounts 0 and 1 of the same phrase. --account picks one.
 async function accountFrom(sdk, file) {
+  const index = opt('account', '0')
+  if (!/^\d{1,3}$/.test(index)) die(`--account must be a small number, got ${index}`)
   const base = await sdk.generateXyoBaseWalletFromPhrase(await readPhrase(file))
-  return base.derivePath('0')
+  return base.derivePath(index)
 }
 
 // ── chain ──
