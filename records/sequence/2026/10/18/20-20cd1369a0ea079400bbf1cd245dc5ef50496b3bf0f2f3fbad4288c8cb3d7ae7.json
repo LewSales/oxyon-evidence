@@ -1,0 +1,59 @@
+{
+  "record": {
+    "schema": "oxyon.evidence.record.v1",
+    "claim": {
+      "type": "winlew.game.result",
+      "statement": "Pilot: a synthetic CryptoSpades result, committed to test WinLEW Game Evidence on XL1. No real match or member."
+    },
+    "subject": {
+      "kind": "winlew-game",
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc"
+    },
+    "source": {
+      "kind": "archived",
+      "path": "blobs/sha256/f0/f0e1d275816f5cbb5b29fdb68a64f35da3449f5ba8e854d810fcec63ba3f522c.json",
+      "publisher": "the issuer; the archived copy is the only source"
+    },
+    "content": {
+      "mediaType": "application/json",
+      "algorithm": "sha256",
+      "canonicalization": "none — the exact bytes of the archived copy",
+      "sha256": "f0e1d275816f5cbb5b29fdb68a64f35da3449f5ba8e854d810fcec63ba3f522c",
+      "bytes": 566
+    },
+    "observedAt": 1792357132211,
+    "issuedAt": 1792357132211,
+    "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "anchoredBy": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "authorization": "9407c96136e3fde7fbe22bf35084b435e24141de198a6b55f64a0975ab8246b0",
+    "establishes": "That these exact bytes existed, unchanged, no later than the block that anchors this record, under the authorization it cites.",
+    "doesNotEstablish": "That the activity they describe happened as described, or was fair. A commitment proves integrity and timing, not truth.",
+    "version": 1
+  },
+  "batch": {
+    "schema": "oxyon.geoproof.anchor.batch.v1",
+    "proofHashes": [
+      "20cd1369a0ea079400bbf1cd245dc5ef50496b3bf0f2f3fbad4288c8cb3d7ae7"
+    ],
+    "network": "xl1:sequence:4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "anchoredAt": 1792357132211
+  },
+  "receipt": {
+    "schema": "oxyon.evidence.receipt.v1",
+    "kind": "anchor",
+    "record": "20cd1369a0ea079400bbf1cd245dc5ef50496b3bf0f2f3fbad4288c8cb3d7ae7",
+    "batch": "1020b6b3b8c65e9f8a11c1309c15607c3018dfe89c8c963c833f8b32770bb31f",
+    "authorization": "9407c96136e3fde7fbe22bf35084b435e24141de198a6b55f64a0975ab8246b0",
+    "network": "sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "tx": "8d63bc1171c44cc0dc42fb51f43aec41afe8fc92a0b62c9929a5e3ed63f29ca9",
+    "signer": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "block": 692147,
+    "blockHash": "cf4af013da7f5a3437b69927bbf580179480e59f080536662fefe502e0db8528",
+    "blockTime": 1792357134272,
+    "blockProducer": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+    "inclusionNote": "Included in a block produced by 2152…cc91, a producer operated by Oxyon. Inclusion is not verification: the commitment is checked against signatures and hashes, not against who produced the block.",
+    "version": 1
+  }
+}
