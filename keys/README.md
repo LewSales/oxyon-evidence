@@ -12,6 +12,7 @@ That these addresses belong to Oxyon is Oxyon's public statement, not a cryptogr
 | Network | Authorization | Delegate | Scope | Valid | On chain |
 |---|---|---|---|---|---|
 | Sequence | [`dbafea3b…a038`](sequence/authorizations/dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038.json) | ee9d…a8bc | producer telemetry records | 2026-10-09 → 2027-01-09 | tx `4cdf748d…4187`, block 664,733 |
+| Sequence | [`9407c961…46b0`](sequence/authorizations/9407c96136e3fde7fbe22bf35084b435e24141de198a6b55f64a0975ab8246b0.json) | ee9d…a8bc | WinLEW game results and reward trails | 2026-10-18 → 2027-01-31 | tx `82275554…95b1`, block 692,135 |
 
 ## Revocations
 

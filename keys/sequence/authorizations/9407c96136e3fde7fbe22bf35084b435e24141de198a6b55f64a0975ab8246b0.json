@@ -1,0 +1,39 @@
+{
+  "authorization": {
+    "schema": "oxyon.evidence.authorization.v1",
+    "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "delegate": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "role": "anchorer",
+    "scope": {
+      "claims": [
+        "winlew.game.result",
+        "winlew.reward.trail"
+      ],
+      "recordSchema": "oxyon.evidence.record.v1",
+      "network": {
+        "id": "sequence",
+        "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc"
+      }
+    },
+    "validFrom": 1792281600000,
+    "validUntil": 1801353600000,
+    "statement": "Oxyon, identified on XL1 by address 4e881c8217945f356900eb5e9e66fcbb05da3829, authorises address ee9d194be80f4bafcb9e9f10f765f3afa431a8bc to anchor Oxyon evidence records of type winlew.game.result, winlew.reward.trail on XL1 Sequence (chain 4b43a753c8024c0e5000e8ac948ac0063ac624bc) from 2026-10-18T00:00Z until 2027-01-31T00:00Z, unless revoked earlier.",
+    "doesNotAuthorise": "Anything else: speaking for Oxyon on other matters, moving Oxyon funds, issuing further authorisations, or anchoring on any other network.",
+    "revocation": "An oxyon.evidence.revocation.v1 record whose revokes field is this record's hash, signed by the issuer and committed on the same network. It takes effect at its own block and does not invalidate records anchored before it.",
+    "version": 1
+  },
+  "receipt": {
+    "schema": "oxyon.evidence.receipt.v1",
+    "kind": "authorization",
+    "authorization": "9407c96136e3fde7fbe22bf35084b435e24141de198a6b55f64a0975ab8246b0",
+    "network": "sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "tx": "82275554ea0635d957c8d60788ef425092866891dd849c26e025c591fd3095b1",
+    "signer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "block": 692135,
+    "blockHash": "43f1497adb001637e4569ba6c0371494862685956a3baa7a236f4d309fb1ca7b",
+    "blockTime": 1792356720168,
+    "blockProducer": "7ac8355c0ed1b6404da1ce7fe87a23394bab8056",
+    "version": 1
+  }
+}
