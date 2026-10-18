@@ -150,7 +150,8 @@ def utf8_output():
         try:
             '→…≤'.encode(stream.encoding or 'ascii')
         except (UnicodeEncodeError, LookupError):
-            stream.reconfigure(encoding='utf-8')
+            if hasattr(stream, 'reconfigure'):  # a replaced stream without it is left as it is
+                stream.reconfigure(encoding='utf-8')
 
 
 def main():
