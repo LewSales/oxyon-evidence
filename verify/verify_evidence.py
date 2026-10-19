@@ -142,7 +142,20 @@ def load_repo_record(path):
     }
 
 
+def utf8_output():
+    """Windows pipes and redirects default to the ANSI code page (cp1252), which cannot print
+    the arrows and ellipses in the report and used to crash the verifier mid-report. Switch to
+    UTF-8 whenever the current encoding cannot carry them; a capable stream is left alone."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            '→…≤'.encode(stream.encoding or 'ascii')
+        except (UnicodeEncodeError, LookupError):
+            if hasattr(stream, 'reconfigure'):  # a replaced stream without it is left as it is
+                stream.reconfigure(encoding='utf-8')
+
+
 def main():
+    utf8_output()
     rows = []
     add = lambda ok, title, detail: rows.append((ok, title, detail))
     bundle = json.load(open(sys.argv[1], encoding='utf-8'))
