@@ -14,6 +14,9 @@ bundle.json = {"authorization": {...}, "record": {...}, "batch": {...},
                "anchorTx": {"network": "sequence", "hash": "..."},          # optional until broadcast
                "authorizationTx": {"network": "sequence", "hash": "..."}}   # optional until broadcast
 
+Exit codes: 0 every check passed, 1 a check failed, 2 incomplete (a required file is
+missing), 3 unavailable (a source could not be read after retries; nothing was concluded).
+
 NOT checked here: secp256k1 signatures (the standard library has no secp256k1). This
 script shows that the chain committed the hashes and that the producer's signed time
 covers them. For signatures, run XYO's own validator (see independent-verification.md).
@@ -21,6 +24,7 @@ covers them. For signatures, run XYO's own validator (see independent-verificati
 import hashlib
 import json
 import sys
+import urllib.error
 import urllib.request
 
 NETS = {
@@ -30,14 +34,36 @@ NETS = {
 UA = {'User-Agent': 'evidence-check/1', 'Content-Type': 'application/json'}
 
 
-def fetch(url, body=None):
+class Unavailable(Exception):
+    """A source could not be read. Nothing about the evidence was concluded (exit 3)."""
+
+
+def fetch(url, body=None, attempts=3):
+    """GET (or POST `body`) with up to `attempts` tries on transient errors. A 404 is an
+    answer and is raised as-is; anything still failing after the last try is Unavailable."""
+    import time
+    host = urllib.request.urlparse(url).netloc
     req = urllib.request.Request(url, data=None if body is None else json.dumps(body).encode(), headers=UA)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read()
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise
+            last = f'HTTP {e.code}'
+        except (urllib.error.URLError, OSError, ValueError) as e:  # refused, reset, DNS, TLS, timeout
+            last = type(getattr(e, 'reason', None) or e).__name__
+        if attempt < attempts:
+            time.sleep(1.5 * attempt)
+    raise Unavailable(f'{host} could not be read after {attempts} tries ({last})')
 
 
 def rpc(net, method, params):
-    out = json.loads(fetch(NETS[net][0], {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}))
+    try:
+        out = json.loads(fetch(NETS[net][0], {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}))
+    except ValueError as e:
+        raise Unavailable(f'{method} answered with something that is not JSON') from e
     if 'error' in out:
         raise RuntimeError(f"{method}: {out['error']}")
     return out['result']
@@ -176,8 +202,8 @@ def tx_on_chain(net, tx_hash):
     for n in range(tx['nbf'], tx['exp'] + 1):  # a transaction can only land in nbf..exp
         try:
             bw, ps = json.loads(fetch(f"{NETS[net][1]}/block/number/{n}.json"))
-        except Exception:
-            continue
+        except urllib.error.HTTPError:
+            continue  # 404: no such block (yet). An unreachable CDN is Unavailable, not "not found".
         if tx_hash in bw['payload_hashes']:
             block, payloads = bw, ps
             break
@@ -387,4 +413,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Unavailable as e:
+        # A network problem is not a verdict on the evidence: say so, and exit apart from 1 (fail).
+        print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
+        sys.exit(3)
