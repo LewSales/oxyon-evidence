@@ -1,0 +1,49 @@
+{
+  "_about": "Genuine, public: XYO RPC transactionViewer_byHash on Sequence for the first evidence record (sequence-authorization).",
+  "network": "sequence",
+  "txHash": "4cdf748dac18fab2f26b67a155fc192591fc4e5f0d5b16afbb5707b3d9974187",
+  "tx": {
+    "schema": "network.xyo.boundwitness",
+    "addresses": [
+      "4e881c8217945f356900eb5e9e66fcbb05da3829"
+    ],
+    "payload_hashes": [
+      "f53284894f051e5e76ff79091e89c842643657a9aa2849633983c88dae4622b1",
+      "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038"
+    ],
+    "payload_schemas": [
+      "network.xyo.hash",
+      "oxyon.evidence.authorization.v1"
+    ],
+    "previous_hashes": [
+      null
+    ],
+    "$signatures": [
+      "5259a1f4d932008c8d65271e5618b806d60e01905b1a90735776e4f53c2fdb014bdf0f965a5713771e811b421bb5701bd98bd8764340895dc69e6859a5e90a30"
+    ],
+    "nbf": 664729,
+    "exp": 664779,
+    "fees": {
+      "base": "e8d4a51000",
+      "gasLimit": "e8d4a51000",
+      "gasPrice": "02540be400",
+      "priority": "00"
+    },
+    "chain": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "from": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "script": [
+      "elevate|f53284894f051e5e76ff79091e89c842643657a9aa2849633983c88dae4622b1"
+    ],
+    "_hash": "4cdf748dac18fab2f26b67a155fc192591fc4e5f0d5b16afbb5707b3d9974187",
+    "_dataHash": "13a466248ab417e878c310e8ad610d30614408ef80cf7cae5322bbd27bcf0b4c"
+  },
+  "payloads": [
+    {
+      "schema": "network.xyo.hash",
+      "_hash": "f53284894f051e5e76ff79091e89c842643657a9aa2849633983c88dae4622b1",
+      "_dataHash": "f53284894f051e5e76ff79091e89c842643657a9aa2849633983c88dae4622b1",
+      "hash": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+      "_sequence": "000001a12102366700000004ae4622b1"
+    }
+  ]
+}
