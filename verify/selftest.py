@@ -37,12 +37,26 @@ for stream in (sys.stdout, sys.stderr):
     except (UnicodeEncodeError, LookupError):
         stream.reconfigure(encoding='utf-8')
 
-failures = 0
+EXITS = {0: 'all checks passed', 1: 'a check failed', 2: 'incomplete', 3: 'UNAVAILABLE: a source could not be read (network), not a verdict'}
+failed, unavailable = [], []
 for path, want_code, must, what in CASES:
-    p = subprocess.run([sys.executable, os.path.join(HERE, 'verify_evidence.py'), os.path.join(ROOT, path)],
-                       capture_output=True, text=True, encoding='utf-8', errors='replace', env=LEGACY)
+    for attempt in (1, 2):  # a case that could not reach its sources is run once more
+        p = subprocess.run([sys.executable, os.path.join(HERE, 'verify_evidence.py'), os.path.join(ROOT, path)],
+                           capture_output=True, text=True, encoding='utf-8', errors='replace', env=LEGACY)
+        if p.returncode != 3:
+            break
     ok = p.returncode == want_code and must in p.stdout
-    failures += not ok
-    print(f"{'PASS' if ok else 'FAIL'}  {what}: exit {p.returncode} (expected {want_code})" + ('' if ok else f"\n      expected to see: {must}\n      output: {p.stdout.strip()[:400]}"))
-print(f"\n{len(CASES) - failures}/{len(CASES)} cases behaved as expected")
-sys.exit(1 if failures else 0)
+    if not ok:
+        (unavailable if p.returncode == 3 else failed).append(what)
+    print(f"{'PASS' if ok else 'FAIL'}  {what}: exit {p.returncode} (expected {want_code})" + ('' if ok else
+          f"\n      case: {path}"
+          f"\n      exit {p.returncode} means: {EXITS.get(p.returncode, 'the verifier crashed')}"
+          f"\n      expected to see: {must}"
+          f"\n      output (last lines): {' | '.join(p.stdout.strip().splitlines()[-4:])[:600] or '(none)'}"
+          f"\n      error (last line): {(p.stderr.strip().splitlines() or ['(none)'])[-1][:300]}"))
+print(f"\n{len(CASES) - len(failed) - len(unavailable)}/{len(CASES)} cases behaved as expected")
+if unavailable:
+    print(f"Could not run (network, twice): {'; '.join(unavailable)}")
+if failed:
+    print(f"Failed: {'; '.join(failed)}")
+sys.exit(1 if failed or unavailable else 0)
