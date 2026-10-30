@@ -1,0 +1,61 @@
+{
+  "_about": "SYNTHETIC. Built with @xyo-network/xl1-sdk buildTransaction and a random throwaway key; never broadcast; not evidence.",
+  "network": "mainnet",
+  "txHash": "62eda46e27092705a897eb8602732234a831cf8163efcc510176a3205837383d",
+  "tx": {
+    "$signatures": [
+      "95c028119c50b05c847919886d92bf6707b6441ab5237198d72577d12e19a9cb5566508915ca9d8a2eed091175fb6d4bea434ef7346eb0d3978b9be970b448c6"
+    ],
+    "chain": "319e667ced10452a117472811130444ded357f26",
+    "fees": {
+      "base": "e8d4a51000",
+      "gasLimit": "e8d4a51000",
+      "gasPrice": "02540be400",
+      "priority": "00"
+    },
+    "nbf": 1000,
+    "exp": 1010,
+    "from": "7bf0215521643b52d2aeeae259b14b5aa99e02c4",
+    "script": [
+      "elevate|2f2839712e55dbc6d2a398f94cbd5377f51e12ca80c90596567a151031ac4156"
+    ],
+    "addresses": [
+      "7bf0215521643b52d2aeeae259b14b5aa99e02c4"
+    ],
+    "payload_hashes": [
+      "2f2839712e55dbc6d2a398f94cbd5377f51e12ca80c90596567a151031ac4156",
+      "3f5e07bbe71add6afeb55fbe61cb92d10de1199daf1fd9e50b9c4d6de388eab8"
+    ],
+    "payload_schemas": [
+      "network.xyo.transfer",
+      "org.example.synthetic.note"
+    ],
+    "previous_hashes": [
+      null
+    ],
+    "schema": "network.xyo.boundwitness",
+    "_dataHash": "36438149985b21bc46e556c9452592d7567fecdb339e45d377660d5e85050b89",
+    "_hash": "62eda46e27092705a897eb8602732234a831cf8163efcc510176a3205837383d"
+  },
+  "payloads": [
+    {
+      "epoch": 1793000000000,
+      "from": "7bf0215521643b52d2aeeae259b14b5aa99e02c4",
+      "schema": "network.xyo.transfer",
+      "transfers": {
+        "abababababababababababababababababababab": "0de0b6b3a7640000",
+        "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd": "1bc16d674ec80000"
+      },
+      "_dataHash": "2f2839712e55dbc6d2a398f94cbd5377f51e12ca80c90596567a151031ac4156",
+      "_hash": "2f2839712e55dbc6d2a398f94cbd5377f51e12ca80c90596567a151031ac4156"
+    }
+  ],
+  "offChainPayloads": [
+    {
+      "schema": "org.example.synthetic.note",
+      "text": "off-chain payload: committed by hash, not elevated",
+      "_dataHash": "3f5e07bbe71add6afeb55fbe61cb92d10de1199daf1fd9e50b9c4d6de388eab8",
+      "_hash": "3f5e07bbe71add6afeb55fbe61cb92d10de1199daf1fd9e50b9c4d6de388eab8"
+    }
+  ]
+}

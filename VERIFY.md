@@ -130,6 +130,44 @@ node verify/sigcheck.mjs https://beta.api.chain.xyo.network/rpc 6987871cbeb54f24
 Expect `signature valid for 4e881c82…` and `signature valid for ee9d194b…`. Any secp256k1
 library works too: the signature covers `xyo_hash(tx, data=True)`.
 
+For the whole transaction under XYO's current rules, run `verify/txcheck.mjs`. It checks:
+- the signatures;
+- the chain id;
+- fees and the nbf/exp window;
+- that each elevated payload hashes to what the signature covers.
+
+It needs Node 26, in an empty folder:
+
+```
+npm i @xyo-network/xl1-protocol@5.8.10 @xyo-network/sdk@8.1.1
+node verify/txcheck.mjs sequence 4cdf748dac18fab2f26b67a155fc192591fc4e5f0d5b16afbb5707b3d9974187
+node verify/txcheck.mjs sequence 6987871cbeb54f245be8600d98a4f043040142b52eccd2d4be9b8b8494b1e5ce
+```
+
+Expect `valid on sequence: signed by 4e881c82…` and `… ee9d194b…`. The script drops any
+`_hash`/`_dataHash` that comes with the data and recomputes it.
+
+## 6b. Transaction integrity (in step 7)
+
+`verify_evidence.py` also checks each transaction from its own bytes, with every hash
+recomputed (the `Transaction integrity` rows):
+- **Network:** the chain id is the expected network's (`CHAIN_IDS` in the script).
+- **Transaction:** the transaction hashes to the hash being verified.
+- **Signers:** there is one signature per address, and `from` is a signer.
+- **Window and fees:** nbf/exp form a valid window, the transaction landed inside it, and
+  the fees are present.
+- **Payloads:**
+  - Every payload the RPC returns hashes to a value the signed transaction commits to, under
+    the same schema.
+  - Every elevated payload is present and matches its hash.
+  - Hash metadata that arrives with the data is not trusted.
+- **Transfers:** a transfer has a valid sender, recipients and amounts. A sender other than
+  the signer is reported as "not decided by this script", because XYO allows it only under
+  a signer authorization this script does not check.
+
+**Integrity is not inclusion.** These checks say the data is what the signature covers.
+The rows above them (block, finality, signed time) say where and whether it landed.
+
 ## 7. All of steps 1–5 in one command
 
 ```
@@ -154,6 +192,23 @@ This runs the verifier on the genuine record and on deliberately broken copies i
 
 The genuine record must pass. Each broken copy must fail, or report INCOMPLETE, for the
 right reason.
+
+The transaction checks also have offline tests (no network, standard library only):
+
+```
+python verify/test_tx_integrity.py
+```
+
+They use the two genuine Sequence transactions above and one **synthetic** transfer
+(`verify/fixtures/tx/synthetic-transfer.json`: a throwaway key, never broadcast, not
+evidence). Each case must be rejected:
+- an edited amount, recipient, sender or schema;
+- the wrong network, or an edited chain field;
+- an edited or missing signature;
+- a missing commitment or a missing elevated payload;
+- malformed input.
+
+Off-chain payloads, unfamiliar committed schemas and storage metadata must be accepted.
 
 ## Limits
 

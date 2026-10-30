@@ -20,6 +20,8 @@ is nothing on Mainnet.
 | `index.json` | A list of records and authorizations (a convenience; every entry is re-derivable) |
 | `verify/verify_evidence.py` | Verifier: Python standard library only |
 | `verify/sigcheck.mjs` | Signature check using XYO's own published validator |
+| `verify/txcheck.mjs` | Whole-transaction check (signatures, chain, fees, elevated payloads) with XYO's current validator; hashes recomputed, never taken from the data |
+| `verify/test_tx_integrity.py` + `verify/fixtures/tx/` | Offline tests for the verifier's transaction-integrity checks (two genuine Sequence transactions and one **synthetic** transfer that was never broadcast) |
 | `verification/` | Oxyon's own verification runs, for reference (not independent) |
 | `VERIFY.md` | Step-by-step reproduction, by hand or with the scripts |
 | `tools/evidence.mjs` + `tools/README.md` | Make a key, authorise it, anchor a record; also the WinLEW claim types and their privacy rule |

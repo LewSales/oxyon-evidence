@@ -56,6 +56,116 @@ def xyo_hash(obj, data=False):
     return hashlib.sha256(json.dumps(deep(top), separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 
 
+# Each network's chain id, as its own RPC reports it (finalizationViewer_head, 2026-10-29).
+CHAIN_IDS = {
+    'sequence': '4b43a753c8024c0e5000e8ac948ac0063ac624bc',
+    'mainnet': '319e667ced10452a117472811130444ded357f26',
+}
+MAX_TX_WINDOW = 10000  # exp - nbf limit in XYO's TransactionDurationValidator
+TRANSFER = 'network.xyo.transfer'
+
+
+def tx_integrity(tx, payloads, net, tx_hash=None):
+    """Check a hydrated transaction [tx, payloads] from its own bytes. Every hash is recomputed
+    here; hash metadata that arrives with the data ('_hash', '_dataHash') is never trusted.
+
+    Returns {'problems': [...], 'unverified': [...], 'transfers': [(from, to, atto)], 'elevated': n}.
+    A problem means the data is not what the signed transaction commits to. 'unverified' lists
+    what this script cannot decide alone. Unknown schemas, off-chain payloads and storage
+    metadata are allowed: only what the signature covers is required to match.
+    Integrity is not inclusion: whether and where the transaction landed is checked separately.
+    """
+    import re
+    hex40, hex64 = re.compile(r'[0-9a-f]{40}'), re.compile(r'[0-9a-f]{64}')
+    problems, unverified, transfers = [], [], []
+    out = {'problems': problems, 'unverified': unverified, 'transfers': transfers, 'elevated': 0}
+    if not isinstance(tx, dict) or not isinstance(payloads, list) or not all(isinstance(p, dict) for p in payloads):
+        problems.append('not a [transaction, payloads] pair')
+        return out
+    try:
+        is_list = lambda v, pat: isinstance(v, list) and all(isinstance(x, str) and pat.fullmatch(x) for x in v)
+        if tx.get('schema') != 'network.xyo.boundwitness':
+            problems.append(f"schema is {tx.get('schema')!r}, not a bound witness")
+        if net not in CHAIN_IDS:
+            problems.append(f'unknown network {net!r}')
+        elif tx.get('chain') != CHAIN_IDS[net]:
+            problems.append(f"chain {str(tx.get('chain'))[:12]}… is not {net} ({CHAIN_IDS[net][:12]}…)")
+        mine = xyo_hash(tx)
+        if tx_hash is not None and mine != str(tx_hash).lower():
+            problems.append(f'transaction hashes to {mine[:16]}…, not {str(tx_hash)[:16]}… (edited, or another transaction)')
+        if '_hash' in tx and tx['_hash'] != mine:
+            problems.append("the transaction's _hash metadata does not match its content")
+        addresses, hashes, schemas = tx.get('addresses'), tx.get('payload_hashes'), tx.get('payload_schemas')
+        if not is_list(addresses, hex40) or not addresses:
+            problems.append('addresses are missing or not 40-hex')
+            addresses = []
+        if not is_list(hashes, hex64):
+            problems.append('payload_hashes are missing or not 64-hex')
+            hashes = []
+        if not isinstance(schemas, list) or len(schemas) != len(hashes):
+            problems.append('payload_schemas do not line up with payload_hashes')
+            schemas = [None] * len(hashes)
+        if not isinstance(tx.get('$signatures'), list) or len(tx['$signatures']) != len(addresses):
+            problems.append('one signature per address is required')
+        sender = tx.get('from')
+        if not (isinstance(sender, str) and hex40.fullmatch(sender) and sender in addresses):
+            problems.append('from is not one of the signing addresses')
+        nbf, exp = tx.get('nbf'), tx.get('exp')
+        if not (isinstance(nbf, int) and isinstance(exp, int) and 0 <= nbf < exp and exp - nbf <= MAX_TX_WINDOW):
+            problems.append(f'nbf/exp ({nbf}, {exp}) are not a valid window')
+        fees = tx.get('fees')
+        if not (isinstance(fees, dict) and all(isinstance(fees.get(k), str) and re.fullmatch(r'[0-9a-f]+', fees[k]) for k in ('base', 'gasLimit', 'gasPrice', 'priority'))):
+            problems.append('fees are missing or not hex')
+
+        committed = dict(zip(hashes, schemas))
+        by_hash = {}
+        for p in payloads:
+            h = xyo_hash(p)
+            by_hash[h] = p
+            if '_hash' in p and p['_hash'] != h:
+                problems.append(f"a {p.get('schema')} payload's _hash metadata does not match its content")
+            if h not in committed:
+                problems.append(f"a {p.get('schema')} payload ({h[:12]}…) is not committed by the signed transaction")
+            elif committed[h] != p.get('schema'):
+                problems.append(f"payload {h[:12]}… is committed as {committed[h]}, not {p.get('schema')}")
+
+        script = tx.get('script', [])
+        if not isinstance(script, list) or not all(isinstance(op, str) for op in script):
+            problems.append('script is not a list of strings')
+            script = []
+        for op in script:
+            if not op.startswith('elevate|'):
+                continue  # other opcodes are not interpreted here
+            h = op[len('elevate|'):]
+            if not hex64.fullmatch(h):
+                problems.append(f'malformed elevate operation {op[:24]}…')
+                continue
+            out['elevated'] += 1
+            if h not in committed:
+                problems.append(f'elevated hash {h[:12]}… is not in payload_hashes')
+            p = by_hash.get(h)
+            if p is None:
+                problems.append(f'elevated payload {h[:12]}… is missing or does not match its hash')
+                continue
+            if p.get('schema') != TRANSFER:
+                continue
+            # XL1 transfers move the chain's native token; the chain id above fixes which one.
+            src, moves = p.get('from'), p.get('transfers')
+            if not (isinstance(src, str) and hex40.fullmatch(src)) or not isinstance(moves, dict) or not moves:
+                problems.append(f'transfer {h[:12]}… has no valid sender or recipients')
+                continue
+            if src != sender:
+                unverified.append(f'transfer {h[:12]}… is from {src[:8]}…, not the signer; XYO allows that only under a signer authorization this script does not check')
+            for to, amount in moves.items():
+                if not (isinstance(to, str) and hex40.fullmatch(to) and isinstance(amount, str) and re.fullmatch(r'(0x)?[0-9a-f]+', amount)):
+                    problems.append(f'transfer {h[:12]}… has a malformed recipient or amount')
+                    continue
+                transfers.append((src, to, int(amount, 16)))
+    except Exception as e:  # malformed input must fail the check, never crash the verifier
+        problems.append(f'unreadable transaction ({type(e).__name__})')
+    return out
+
+
 def tx_on_chain(net, tx_hash):
     head = rpc(net, 'finalizationViewer_head', [])[0]
     found = rpc(net, 'transactionViewer_byHash', [tx_hash])
@@ -74,6 +184,8 @@ def tx_on_chain(net, tx_hash):
     clock = next((p for p in payloads or [] if p.get('schema') == 'network.xyo.time'), None)
     return {
         'found': True, 'tx': tx, 'head': head, 'block': block,
+        'integrity': tx_integrity(tx, found[1] if len(found) > 1 else [], net, tx_hash),
+        'inWindow': bool(block) and tx['nbf'] <= block['block'] <= tx['exp'],
         'txHashOk': xyo_hash(tx) == tx_hash,
         'blockHashOk': bool(block) and xyo_hash(block) == block['_hash'],
         'clockSigned': bool(clock) and xyo_hash(clock) in block['payload_hashes'],
@@ -222,7 +334,13 @@ def main():
             continue
         elevated = xyo_hash({'schema': 'network.xyo.hash', 'hash': hashes[0]})
         commits = all(h in c['tx']['payload_hashes'] for h in hashes + [elevated]) and ('elevate|' + elevated) in c['tx'].get('script', [])
-        ok = c['sameChain'] and c['txHashOk'] and c['tx']['addresses'][0] == signer and commits and c['blockHashOk'] and c['clockSigned'] and c['final']
+        ok = c['sameChain'] and c['txHashOk'] and c['tx']['addresses'][0] == signer and commits and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['inWindow']
+        integrity = c['integrity']
+        add(not integrity['problems'], f'Transaction integrity ({key})',
+            '; '.join(integrity['problems'][:3]) if integrity['problems'] else
+            f"{len(c['tx']['payload_hashes'])} commitments, {integrity['elevated']} elevated payload(s) re-hashed here, chain is {ref['network']}, landed inside nbf..exp={c['inWindow']}")
+        for note in integrity['unverified']:
+            add(None, f'Not decided by this script ({key})', note)
         times[key] = c['time']
         if c['block']:
             bundle.setdefault('_blocks', {})[key] = c['block']['block']
@@ -260,7 +378,7 @@ def main():
     if '--plumbing-tx' in sys.argv:
         h = sys.argv[sys.argv.index('--plumbing-tx') + 1]
         c = tx_on_chain('sequence', h)
-        add(c['found'] and c['txHashOk'] and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['sameChain'],
+        add(c['found'] and c['txHashOk'] and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['sameChain'] and c['inWindow'] and not c['integrity']['problems'],
             f'Chain plumbing on tx {h[:10]}…', f"block #{c['block']['block'] if c.get('block') else '?'}, signed time {c.get('time')}, head #{c['head']['block'] if c.get('head') else '?'}")
 
     for ok, title, detail in rows:
