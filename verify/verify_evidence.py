@@ -263,6 +263,7 @@ def same_match_records(root, record_hash, session):
     the index, so a record missing from the index is still found."""
     import glob
     import os
+    import re
     others = []
     for path in glob.glob(os.path.join(root, 'records', '**', '*.json'), recursive=True):
         try:
@@ -278,7 +279,10 @@ def same_match_records(root, record_hash, session):
         h = xyo_hash(rec)
         if h == record_hash:
             continue
-        sha = (rec.get('content') or {}).get('sha256') or ''
+        sha = rec['content'].get('sha256')
+        # Only a well-formed SHA-256 names an archived file: anything else (a number, a path) is skipped.
+        if not isinstance(sha, str) or not re.fullmatch(r'[0-9a-f]{64}', sha):
+            continue
         blob = os.path.join(root, 'blobs', 'sha256', sha[:2], sha + '.json')
         try:
             other = json.loads(open(blob, 'rb').read().decode('utf-8'))

@@ -210,6 +210,69 @@ evidence). Each case must be rejected:
 
 Off-chain payloads, unfamiliar committed schemas and storage metadata must be accepted.
 
+## 9. Reading a result
+
+Each row the verifier prints is one check, in one of four states:
+
+| Row | Meaning |
+|---|---|
+| `[ok]` | Checked, and it holds |
+| `[FAIL]` | Checked, and it does not hold. The evidence is wrong or has been altered |
+| `[pending]` | Not checkable yet, for example an anchor that has not been broadcast. Not a failure |
+| Oxyon's disclosure | A statement by Oxyon, not a check |
+
+The exit code is a verdict on the evidence only when one was reached:
+
+| Exit | Meaning |
+|---|---|
+| `0` | No row failed (`[ok]` and `[pending]` only) |
+| `1` | At least one row is `[FAIL]` |
+| `2` | `[INCOMPLETE]`: a file the evidence chain needs is missing. Nothing else was checked |
+| `3` | `[UNAVAILABLE]`: GitHub, the RPC or the block CDN could not be read. **Nothing was concluded**; run it again. An unreachable source is never reported as a failed check |
+
+The same input gives the same rows and the same exit code on every run. The checks have no
+randomness, and every list they compare is sorted.
+
+## 10. WinLEW records: two extra rules
+
+Records with a `winlew.*` claim type (see `tools/README.md` for what each one establishes) get
+two more checks:
+
+- **No member identifiers.** The archived content may not contain a Discord-style id (17–20
+  digits) or an address (40 hex characters, with or without `0x`). Players appear only as
+  salted 64-hex commitments.
+- **One match, one record.** A `winlew.game.result` names its match by `sessionCommitment`.
+  - The verifier reads **every** file under `records/` (not only `index.json`), loads each other
+    `winlew.game.result`'s archived content, and fails if any other record commits to the same
+    `sessionCommitment`. The record being checked is excluded, whoever issued the other one.
+  - A duplicate fails from both sides.
+  - These are not duplicates:
+    - files that are not valid JSON, or not a record;
+    - other claim types;
+    - records whose archived content is missing (they fail their own "Snapshot bytes" check
+      instead);
+    - records whose `content.sha256` is not 64 lowercase hex characters;
+    - results without a `sessionCommitment`.
+
+To reproduce the rule by hand:
+1. Take the record's `content.sha256` and open `blobs/sha256/<first 2>/<sha256>.json`.
+2. Note its `sessionCommitment`.
+3. Look for any other record under `records/` whose `claim.type` is `winlew.game.result` and
+   whose archived content has the same value.
+
+There should be none.
+
+## 11. Tests (standard library only; all but selftest run offline)
+
+| Command | What it shows |
+|---|---|
+| `python verify/selftest.py` | The genuine record passes, and each broken copy in `verify/fixtures/` fails or is INCOMPLETE for the right reason. Uses the network |
+| `python verify/test_tx_integrity.py` | Edited transactions are rejected; off-chain payloads, unfamiliar schemas and storage metadata are accepted |
+| `python verify/test_unavailable.py` | An unreachable source gives exit 3 and `[UNAVAILABLE]`, never `[FAIL]` |
+| `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
+
+Run them with `python -I` to keep the current directory off Python's import path.
+
 ## Limits
 
 - **Revocations.** `verify_evidence.py` scans every block from the authorization to the anchor

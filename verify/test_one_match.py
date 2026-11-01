@@ -112,6 +112,59 @@ class OneMatchOneRecord(unittest.TestCase):
             self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), first)
         self.assertEqual(len(first), 1)
 
+    def test_a_malformed_content_hash_is_skipped_not_fatal_and_never_a_path(self):
+        # A number, a path and a short value in content.sha256: none may stop the check or pick the file read.
+        os.makedirs(os.path.join(self.root, 'blobs', 'sha256', '..'), exist_ok=True)
+        json.dump({'sessionCommitment': self.content['sessionCommitment']}, open(os.path.join(self.root, 'blobs', 'escape.json'), 'w'))
+        for i, bad in enumerate((12345, '../../blobs/escape', 'ab', None, ['x'])):
+            odd = copy.deepcopy(self.record)
+            odd['issuedAt'] = self.record['issuedAt'] + 300_000 + i
+            odd['content'] = {**odd['content'], 'sha256': bad}
+            self.write_record(f'11-bad-sha-{i}.json', odd)
+        self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), [])
+
+    def test_several_duplicates_are_all_found_in_a_stable_order_whatever_the_file_order(self):
+        hashes = []
+        for i, name in enumerate(('zz-last.json', 'aa-first.json', 'mm-middle.json')):   # written out of order
+            again = copy.deepcopy(self.record)
+            again['issuedAt'] = self.record['issuedAt'] + 400_000 + i
+            hashes.append(self.write_record(name, again))
+        found = ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment'])
+        self.assertEqual(found, sorted(hashes))
+        # From any duplicate's side, the others (and the original) are found, also sorted.
+        mine = hashes[1]
+        self.assertEqual(ve.same_match_records(self.root, mine, self.content['sessionCommitment']),
+                         sorted([h for h in hashes if h != mine] + [ve.xyo_hash(self.record)]))
+
+
+class CommittedRecords(unittest.TestCase):
+    """Every record published in this repository still satisfies the rules: compatibility, not a fixture."""
+
+    def records(self):
+        import glob
+        for path in sorted(glob.glob(os.path.join(ROOT, 'records', '**', '*.json'), recursive=True)):
+            yield path, json.load(open(path, encoding='utf-8'))['record']
+
+    def test_every_committed_record_has_its_archived_content_and_hashes_to_its_file_name(self):
+        import hashlib
+        n = 0
+        for path, record in self.records():
+            n += 1
+            self.assertIn(ve.xyo_hash(record), os.path.basename(path), path)
+            sha = record['content']['sha256']
+            raw = open(os.path.join(ROOT, 'blobs', 'sha256', sha[:2], sha + '.json'), 'rb').read()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), sha, path)
+        self.assertGreater(n, 0)
+
+    def test_no_committed_game_result_shares_a_match_or_names_a_member(self):
+        for path, record in self.records():
+            if record['claim'].get('type') != 'winlew.game.result':
+                continue
+            sha = record['content']['sha256']
+            content = json.load(open(os.path.join(ROOT, 'blobs', 'sha256', sha[:2], sha + '.json'), encoding='utf-8'))
+            self.assertEqual(ve.member_identifiers(content), [], path)
+            self.assertEqual(ve.same_match_records(ROOT, ve.xyo_hash(record), content.get('sessionCommitment')), [], path)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=1)
