@@ -80,5 +80,38 @@ class OneMatchOneRecord(unittest.TestCase):
         self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), [])
 
 
+    def test_malformed_records_are_skipped(self):
+        d = os.path.join(self.root, 'records', 'sequence', '2026', '11', '01')
+        os.makedirs(d, exist_ok=True)
+        for name, body in (('04-no-record.json', {'batch': {}}), ('05-no-claim.json', {'record': {'content': {}}}),
+                           ('06-list.json', []), ('07-null-record.json', {'record': None})):
+            json.dump(body, open(os.path.join(d, name), 'w', encoding='utf-8'))
+        self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), [])
+
+    def test_a_duplicate_whose_evidence_is_missing_is_not_counted(self):
+        # Without its archived content nothing shows it is the same match; the record still fails its
+        # own verification ("Snapshot bytes match the record") when anyone checks it.
+        gone = copy.deepcopy(self.record)
+        gone['issuedAt'] = self.record['issuedAt'] + 180_000
+        gone['content'] = {**gone['content'], 'sha256': 'ff' * 32}
+        self.write_record('08-missing-blob.json', gone)
+        self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), [])
+
+    def test_an_older_result_without_a_session_commitment_is_not_a_duplicate(self):
+        older = copy.deepcopy(self.record)
+        older['issuedAt'] = self.record['issuedAt'] + 240_000
+        self.write_record('09-no-session.json', older, {k: v for k, v in self.content.items() if k != 'sessionCommitment'})
+        self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), [])
+
+    def test_repeated_checks_give_the_same_answer(self):
+        again = copy.deepcopy(self.record)
+        again['issuedAt'] = self.record['issuedAt'] + 60_000
+        self.write_record('10-duplicate.json', again)
+        first = ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment'])
+        for _ in range(3):
+            self.assertEqual(ve.same_match_records(self.root, ve.xyo_hash(self.record), self.content['sessionCommitment']), first)
+        self.assertEqual(len(first), 1)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=1)

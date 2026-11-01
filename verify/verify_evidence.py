@@ -266,10 +266,14 @@ def same_match_records(root, record_hash, session):
     others = []
     for path in glob.glob(os.path.join(root, 'records', '**', '*.json'), recursive=True):
         try:
-            rec = json.load(open(path, encoding='utf-8')).get('record') or {}
+            doc = json.load(open(path, encoding='utf-8'))
         except (ValueError, OSError):
             continue
-        if (rec.get('claim') or {}).get('type') != 'winlew.game.result':
+        # A malformed file (not an object, or an odd record) is skipped, never fatal to the check.
+        rec = doc.get('record') if isinstance(doc, dict) else None
+        if not isinstance(rec, dict) or not isinstance(rec.get('claim'), dict) or rec['claim'].get('type') != 'winlew.game.result':
+            continue
+        if not isinstance(rec.get('content'), dict):
             continue
         h = xyo_hash(rec)
         if h == record_hash:
