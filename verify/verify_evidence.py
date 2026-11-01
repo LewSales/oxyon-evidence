@@ -256,6 +256,35 @@ def member_identifiers(value, path='content'):
     return found
 
 
+def same_match_records(root, record_hash, session):
+    """Other winlew.game.result records in this repository that commit to the same match
+    (the same sessionCommitment). One match should have one record: a second one, whoever
+    issued it, is a duplicate claim about the same play. Every record file is read, not only
+    the index, so a record missing from the index is still found."""
+    import glob
+    import os
+    others = []
+    for path in glob.glob(os.path.join(root, 'records', '**', '*.json'), recursive=True):
+        try:
+            rec = json.load(open(path, encoding='utf-8')).get('record') or {}
+        except (ValueError, OSError):
+            continue
+        if (rec.get('claim') or {}).get('type') != 'winlew.game.result':
+            continue
+        h = xyo_hash(rec)
+        if h == record_hash:
+            continue
+        sha = (rec.get('content') or {}).get('sha256') or ''
+        blob = os.path.join(root, 'blobs', 'sha256', sha[:2], sha + '.json')
+        try:
+            other = json.loads(open(blob, 'rb').read().decode('utf-8'))
+        except (ValueError, OSError):
+            continue
+        if isinstance(other, dict) and other.get('sessionCommitment') == session:
+            others.append(h)
+    return sorted(others)
+
+
 def load_repo_record(path):
     """Repository mode: a published record file {record, batch, receipt}. The authorization and its
     receipt are found in keys/ by hash; the transaction hashes come from the receipts, which are
@@ -337,6 +366,20 @@ def main():
             leaks = ['content is not JSON']
         add(not leaks, 'No member identifiers in the published content',
             'only salted commitments' if not leaks else f"found: {', '.join(leaks[:3])}")
+
+    # One match, one record: a game result is identified by its salted session commitment.
+    if record['claim']['type'] == 'winlew.game.result' and raw:
+        try:
+            session = json.loads(raw.decode('utf-8')).get('sessionCommitment')
+        except (ValueError, AttributeError):
+            session = None
+        if not session:
+            add(False, 'One match, one record', 'the game result names no sessionCommitment, so duplicates cannot be ruled out')
+        else:
+            others = same_match_records(root, xyo_hash(record), session)
+            add(not others, 'One match, one record',
+                'no other record in this repository commits to the same match' if not others
+                else f"also recorded by {len(others)} other record(s): {', '.join(o[:16] + '…' for o in others[:3])}")
 
     rh, bh, ah = xyo_hash(record), xyo_hash(batch), xyo_hash(auth)
     add(rh in batch['proofHashes'], 'Record is in the batch', f'record {rh[:16]}…')

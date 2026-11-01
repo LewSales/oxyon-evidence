@@ -49,5 +49,11 @@ Discord ID, a WinLEW account ID or a wallet address. Members appear only as salt
 commitments, `sha256(salt ‖ id)`, with the salt held by WinLEW. A record that breaks the rule
 fails verification.
 
+**One match, one record (checked by the verifier):** a `winlew.game.result` names its match by
+`sessionCommitment`, a salted commitment to the server's session. A second record in this
+repository committing to the same match is reported as a duplicate, whoever issued it. A result
+with no `sessionCommitment` fails the check, because duplicates could not be ruled out. Tests:
+`verify/test_one_match.py`.
+
 Fixtures for both rules are in `verify/fixtures/winlew/`. They are synthetic, never anchored,
 and not evidence.
