@@ -251,7 +251,9 @@ python verify/verify_evidence.py <record> --receipt receipt.json
 | `scope.finality` | The rule used: block height ≤ the finalized head XYO's RPC reports. It is a trust in that RPC, not finality established independently |
 | `scope.producerAttribution` | `INFERRED`: the block's first signer is taken as its producer |
 | `evidence`, `chain` | The record, batch and authorization hashes, the source's sha256, and each transaction's block, block hash and signed time |
-| `reproduce` | The command to run again. The outcome, check results, hashes, blocks and signed times should repeat. `performedAt` and the finalized head will differ, so two receipts are not byte-identical |
+| `reproduce` | The original invocation as an argument list (`argv`, no shell parsing), plus `command` (quoted for POSIX shells) and `commandWindows`. Run it from the same directory: paths are as given. The outcome, check results, hashes, blocks and signed times should repeat. `performedAt` and the finalized head will differ, so two receipts are not byte-identical |
+
+The receipt file is created new and never overwrites anything. If the path already exists (a file, a directory or any symbolic link), or if it is the evidence record however spelled (relative, `..` or a link), no receipt is written and the reason goes to stderr. The verdict and the exit code are unaffected.
 
 A receipt describes one run. It is not evidence by itself: re-run the command, and the result that counts is yours.
 

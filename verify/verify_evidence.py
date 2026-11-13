@@ -525,7 +525,11 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
         reason = f'{reason}: {note}'
     legs = run.get('legs') or {}
     ev = run.get('evidence')
-    args = [a for a in argv[1:]]
+    # The original invocation, argument by argument (the --receipt pair already removed). A list is
+    # the unambiguous form; the two strings are shell-quoted renderings of the same list.
+    import shlex
+    import subprocess
+    rerun = ['python'] + [str(a) for a in argv]
     return {
         'schema': RECEIPT_SCHEMA, 'receiptVersion': RECEIPT_VERSION,
         'procedure': {'id': PROCEDURE, 'verifier': 'verify/verify_evidence.py', 'verifierSha256': script_sha256,
@@ -557,7 +561,12 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
         'chain': {k: {'network': v['network'], 'tx': v['tx'], 'found': v['found'], 'block': v['block'],
                       'blockHash': v['blockHash'], 'signedTime': v['signedTime']} for k, v in legs.items()},
         'reproduce': {
-            'command': 'python verify/verify_evidence.py ' + ' '.join(args),
+            'argv': rerun,
+            'command': shlex.join(rerun),
+            'commandWindows': subprocess.list2cmdline(rerun),
+            'workingDirectory': 'run from the same directory as the original run: paths are as given on its command '
+                                'line. Prefer argv (no shell parsing); command is quoted for POSIX shells, '
+                                'commandWindows for Windows programs (cmd.exe metacharacters may need extra escaping)',
             'needs': 'Python 3.9+ standard library; read access to the record files, the pinned source, '
                      'and XYO\'s public RPC and block CDN',
             'deterministic': 'the outcome status, check titles and statuses, evidence hashes, block numbers, block '
@@ -568,19 +577,41 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
     }
 
 
+def _receipt_path_problem(path, inputs):
+    """Why `path` must not be written, or None. Never overwrites anything: an existing path (a file, a
+    directory, or any symbolic link, even a dangling one) is refused, and so is any path that is or
+    resolves to one of the evidence inputs, however it is spelled (relative, '..', links)."""
+    import os
+    if os.path.lexists(path):
+        target = os.path.realpath(path)
+        for given in inputs:
+            if os.path.exists(given) and os.path.realpath(given) == target:
+                return f'{path} is the evidence file {given}; a receipt never overwrites evidence'
+        return f'{path} already exists; a receipt never overwrites a file (choose a new name)'
+    for given in inputs:
+        if os.path.exists(given) and os.path.realpath(path) == os.path.realpath(given):
+            return f'{path} resolves to the evidence file {given}; a receipt never overwrites evidence'
+    return None
+
+
 def _write_receipt(path, exit_code, note=None):
     """Writes the receipt; any problem goes to stderr and never changes the verifier's exit code."""
     import datetime
     import platform
     try:
+        problem = _receipt_path_problem(path, sys.argv[1:2])
+        if problem:
+            print(f'receipt not written: {problem}', file=sys.stderr)
+            return
         with open(__file__, 'rb') as fh:
             script_sha = hashlib.sha256(fh.read()).hexdigest()
         receipt = build_receipt(_RUN, exit_code, sys.argv,
                                 datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
                                 script_sha, platform.python_version(), note)
-        with open(path, 'w', encoding='utf-8', newline='\n') as fh:
-            json.dump(receipt, fh, indent=2, sort_keys=True, ensure_ascii=False)
-            fh.write('\n')
+        text = json.dumps(receipt, indent=2, sort_keys=True, ensure_ascii=False) + '\n'  # complete before any file exists
+        # 'x' = exclusive creation: fails if the path appeared since the check, so nothing is ever overwritten.
+        with open(path, 'x', encoding='utf-8', newline='\n') as fh:
+            fh.write(text)
         print(f'receipt ({receipt["outcome"]["status"]}) written to {path}', file=sys.stderr)
     except Exception as e:  # the receipt must never alter the verification result
         print(f'receipt not written: {type(e).__name__}: {e}', file=sys.stderr)
