@@ -37,6 +37,27 @@ node tools/evidence.mjs anchor    --key-file C:\keys\oxyon-anchor-winlew.key --a
 - **Who signs `authorize`:** the issuer must be Oxyon's identity key (`4e88…3829`). Only it can
   make the authorization mean "Oxyon authorises".
 
+## Revoking an authorization
+
+```
+node tools/evidence.mjs revoke --issuer-file prompt --revokes <authorization hash> [--reason "…"] [--send]
+```
+
+- **What it commits:** the record every authorization promises in its own `revocation` field: an `oxyon.evidence.revocation.v1` whose `revokes` is the authorization's hash, **signed by that authorization's issuer**, on **its** network.
+  - The tool refuses any other key, a tampered authorization file, or a different network.
+- **Dry run by default:** it signs and prints the hash and fee, and broadcasts nothing.
+- **What `--send` writes:** `keys/<network>/revocations/<hash>.json` (the revocation and its receipt) and an `index.json` `revocations` entry.
+- **One authorization per run.** Revoke each one separately.
+
+### How old evidence stays verifiable
+**A revocation takes effect at its own block.** For each record, `verify/verify_evidence.py` scans only the blocks **from that record's authorization to its anchor** for a revocation by the issuer.
+- **Anchored before the revocation block:** the revocation lies outside that range, and every check still passes.
+- **Anchored afterwards:** it fails "No revocation by the issuer between authorization and anchor".
+
+**The scan is deliberately coarse:** the chain stores the revocation's hash, not its body, so **any** revocation by the issuer in that range fails the record, whichever authorization it names. That fails closed. Revoking every authorization of a compromised issuer at once, as intended, loses nothing.
+
+**Test:** `tools/test/revoke.test.mjs` runs offline with a phrase generated in the test (no real key, `fetch` disabled).
+
 ## WinLEW claim types
 
 | Claim type | What the content is | What it establishes | What it does NOT establish |

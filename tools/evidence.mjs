@@ -17,6 +17,12 @@
 //   node tools/evidence.mjs anchor    --key-file <file> --authorization <hash> --content <file.json>
 //                                     --claim-type <type> --statement "<text>" [--subject <json>]
 //                                     [--observed-at <ms>] [--send]
+//   node tools/evidence.mjs revoke    --issuer-file <file> --revokes <authorization hash>
+//                                     [--reason "<text>"] [--send]
+//
+// revoke commits the oxyon.evidence.revocation.v1 record every authorization promises: signed
+// by that authorization's issuer, on its network. It takes effect at its own block; records
+// anchored earlier stay valid (verify_evidence.py checks only the authorization→anchor range).
 //
 // Without --send nothing is broadcast: the transaction is built and signed, its hash and
 // fee are printed, and no file is written. Key files hold a recovery phrase -- either the
@@ -45,8 +51,9 @@ export function xyoHash(obj, { data = false } = {}) {
   return createHash('sha256').update(JSON.stringify(deep(top)), 'utf8').digest('hex')
 }
 
-// ── arguments ──
-const [cmd, ...rest] = process.argv.slice(2)
+// ── arguments ── (only when run as a command; importing this file for tests runs nothing)
+const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+const [cmd, ...rest] = isMain ? process.argv.slice(2) : []
 const opt = (name, fallback) => { const i = rest.indexOf(`--${name}`); return i >= 0 ? rest[i + 1] : fallback }
 const flag = (name) => rest.includes(`--${name}`)
 const need = (name) => { const v = opt(name); if (!v) die(`--${name} is required`); return v }
@@ -118,9 +125,10 @@ const xl1 = (atto) => { const s = String(atto).padStart(19, '0'); return `${s.sl
 
 /** Build and sign one evidence transaction: `elevated` goes on chain as network.xyo.hash of
  *  `hashOf`; `referenced` objects are committed by hash only. Returns the signed pair. */
-async function buildTx(sdk, account, net, hashOf, referenced) {
+export async function buildTx(sdk, account, net, hashOf, referenced, { head: givenHead } = {}) {
   const { chainId } = NETS[net]
-  const head = (await rpc(net, 'xyoViewer_currentBlock', []))[0]
+  // Tests pass a synthetic head so a transaction can be built and signed with no network.
+  const head = givenHead ?? (await rpc(net, 'xyoViewer_currentBlock', []))[0]
   if (String(head.chain).toLowerCase().replace(/^0x/, '') !== chainId) die(`RPC for ${net} reports chain ${head.chain}, not ${chainId}`)
   const nbf = head.block, exp = nbf + 10
   const elevated = { schema: 'network.xyo.hash', hash: hashOf }
@@ -175,11 +183,36 @@ function receiptFor(kind, fields, net, tx, where) {
   }
 }
 const writeJson = (path, obj) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, `${JSON.stringify(obj, null, 2)}\n`, 'utf8') }
+const INDEX_KEY = { records: 'record', authorizations: 'authorization', revocations: 'revocation' }
 function updateIndex(section, entry) {
   const p = join(ROOT, 'index.json')
   const idx = JSON.parse(readFileSync(p, 'utf8'))
-  idx[section] = [...(idx[section] ?? []).filter((e) => e[section === 'records' ? 'record' : 'authorization'] !== entry[section === 'records' ? 'record' : 'authorization']), entry]
+  const key = INDEX_KEY[section]
+  idx[section] = [...(idx[section] ?? []).filter((e) => e[key] !== entry[key]), entry]
   writeJson(p, idx)
+}
+
+/** The revocation an authorization's own text promises: an oxyon.evidence.revocation.v1 record
+ *  whose `revokes` is the authorization's hash, signed by the issuer, on the same network.
+ *  Pure: throws if `issuerAddress` is not the authorization's issuer or the hash is wrong. */
+export function revocationFor({ authorization, authorizationHash, issuerAddress, reason, revokedAt }) {
+  if (authorization?.schema !== 'oxyon.evidence.authorization.v1') throw new Error('not an oxyon.evidence.authorization.v1')
+  if (xyoHash(authorization) !== authorizationHash) throw new Error('authorization file does not hash to the given hash')
+  const issuer = String(issuerAddress).toLowerCase().replace(/^0x/, '')
+  if (issuer !== authorization.issuer) throw new Error(`only the issuer ${authorization.issuer} can revoke this authorization (key is ${issuer})`)
+  const { network } = authorization.scope
+  return {
+    schema: 'oxyon.evidence.revocation.v1',
+    issuer,
+    revokes: authorizationHash,
+    revokedDelegate: authorization.delegate,
+    revokedClaims: authorization.scope.claims,
+    network: { id: network.id, chainId: network.chainId },
+    revokedAt,
+    reason: String(reason || 'The keys of this authorization are no longer trusted.'),
+    statement: `Oxyon, identified on XL1 by address ${issuer}, revokes authorization ${authorizationHash} (delegate ${authorization.delegate}, claims ${authorization.scope.claims.join(', ')}). It takes effect at the block that commits this revocation. Records anchored under that authorization before that block remain valid; none anchored from that block on are covered by it.`,
+    version: 1,
+  }
 }
 async function showCost(net, tx) {
   const bal = await balanceAtto(tx)
@@ -294,4 +327,31 @@ if (cmd === 'anchor') {
   process.exit(0)
 }
 
-die('usage: node tools/evidence.mjs new-key | address | authorize | anchor  (see the header of this file)')
+if (cmd === 'revoke') {
+  const authHash = need('revokes').toLowerCase()
+  if (!/^[0-9a-f]{64}$/.test(authHash)) die('--revokes must be a 64-hex authorization hash')
+  const authFile = Object.keys(NETS).map((n) => join(ROOT, 'keys', n, 'authorizations', `${authHash}.json`)).find(existsSync)
+  if (!authFile) die(`no authorization ${authHash} in keys/`)
+  const { authorization } = JSON.parse(readFileSync(authFile, 'utf8'))
+  const net = authorization.scope.network.id
+  if (opt('network') && opt('network') !== net) die(`authorization ${authHash.slice(0, 12)}… is on ${net}; a revocation must be committed on the same network`)
+  const sdk = await loadSdk()
+  const issuer = await accountFrom(sdk, need('issuer-file'))
+  let revocation
+  try { revocation = revocationFor({ authorization, authorizationHash: authHash, issuerAddress: addr(issuer.address), reason: opt('reason'), revokedAt: Date.now() }) } catch (e) { die(e.message) }
+  const hash = xyoHash(revocation)
+  console.log(`revocation ${hash}`)
+  console.log(`  ${revocation.statement}`)
+  const tx = await buildTx(sdk, issuer, net, hash, [revocation])
+  await showCost(net, tx)
+  if (!flag('send')) { console.log('  dry run: nothing broadcast, nothing written (add --send)'); process.exit(0) }
+  const where = await sendAndLocate(net, tx)
+  const receipt = receiptFor('revocation', { revocation: hash, revokes: authHash }, net, tx, where)
+  const file = join(ROOT, 'keys', net, 'revocations', `${hash}.json`)
+  writeJson(file, { revocation, receipt })
+  updateIndex('revocations', { network: net, revocation: hash, revokes: authHash, issuer: revocation.issuer, tx: tx.hash, block: where.block, blockTime: where.blockTime, path: file.slice(ROOT.length + 1).replace(/\\/g, '/') })
+  console.log(`✓ revocation on chain in block ${where.block}; it takes effect from that block. Wrote ${file.slice(ROOT.length + 1)}`)
+  process.exit(0)
+}
+
+if (isMain) die('usage: node tools/evidence.mjs new-key | address | authorize | anchor | revoke  (see the header of this file)')
