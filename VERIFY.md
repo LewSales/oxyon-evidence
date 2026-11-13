@@ -233,6 +233,28 @@ The exit code is a verdict on the evidence only when one was reached:
 The same input gives the same rows and the same exit code on every run. The checks have no
 randomness, and every list they compare is sorted.
 
+## 9b. A machine-readable receipt (optional)
+
+```
+python verify/verify_evidence.py <record> --receipt receipt.json
+```
+
+`--receipt` writes a JSON receipt (`oxyon.evidence.verification-receipt`, version `0.1`) beside the run. Everything else stays the same: the rows printed, the exit code and the checks themselves. Without the flag, the verifier behaves exactly as before. The receipt is made from what the run already read, with no extra network request, and is unsigned.
+
+| Field | What it says |
+|---|---|
+| `procedure` | Which script ran (`verifierSha256`) and the Python version |
+| `performedAt` | When this run finished (UTC, from the local clock) |
+| `outcome.status` | `VERIFIED` only when **every** check passed and none was left `[pending]`. A `[pending]` check makes it `INCONCLUSIVE`, even though the exit code is 0. `FAILED` for exit 1, `INCONCLUSIVE` for exit 2, `NOT_EVALUATED` for exit 3 (nothing was concluded) |
+| `checks` | Every printed row, as `VERIFIED`, `FAILED` or `NOT_EVALUATED` |
+| `scope.signatures` | Always `NOT_EVALUATED`: this script does not check secp256k1 signatures (see step 6) |
+| `scope.finality` | The rule used: block height ≤ the finalized head XYO's RPC reports. It is a trust in that RPC, not finality established independently |
+| `scope.producerAttribution` | `INFERRED`: the block's first signer is taken as its producer |
+| `evidence`, `chain` | The record, batch and authorization hashes, the source's sha256, and each transaction's block, block hash and signed time |
+| `reproduce` | The command to run again. The outcome, check results, hashes, blocks and signed times should repeat. `performedAt` and the finalized head will differ, so two receipts are not byte-identical |
+
+A receipt describes one run. It is not evidence by itself: re-run the command, and the result that counts is yours.
+
 ## 10. WinLEW records: two extra rules
 
 Records with a `winlew.*` claim type (see `tools/README.md` for what each one establishes) get
@@ -269,6 +291,7 @@ There should be none.
 | `python verify/selftest.py` | The genuine record passes, and each broken copy in `verify/fixtures/` fails or is INCOMPLETE for the right reason. Uses the network |
 | `python verify/test_tx_integrity.py` | Edited transactions are rejected; off-chain payloads, unfamiliar schemas and storage metadata are accepted |
 | `python verify/test_unavailable.py` | An unreachable source gives exit 3 and `[UNAVAILABLE]`, never `[FAIL]` |
+| `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
 Run them with `python -I` to keep the current directory off Python's import path.

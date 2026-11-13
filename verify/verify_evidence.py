@@ -332,6 +332,7 @@ def utf8_output():
 def main():
     utf8_output()
     rows = []
+    _RUN['rows'] = rows  # receipt layer reads the same rows that are printed; nothing else changes
     add = lambda ok, title, detail: rows.append((ok, title, detail))
     bundle = json.load(open(sys.argv[1], encoding='utf-8'))
     if 'receipt' in bundle:
@@ -390,6 +391,11 @@ def main():
                 else f"also recorded by {len(others)} other record(s): {', '.join(o[:16] + '…' for o in others[:3])}")
 
     rh, bh, ah = xyo_hash(record), xyo_hash(batch), xyo_hash(auth)
+    _RUN['evidence'] = {'recordHash': rh, 'batchHash': bh, 'authorizationHash': ah,
+                        'network': record['subject'].get('network'), 'chainId': record['subject'].get('chainId'),
+                        'claimType': record['claim']['type'],
+                        'source': {'url': src.get('url'), 'commit': src.get('commit'), 'readFrom': where,
+                                   'expectedSha256': want, 'observedSha256': sha, 'bytes': len(raw)}}
     add(rh in batch['proofHashes'], 'Record is in the batch', f'record {rh[:16]}…')
     add(record['authorization'] == ah, 'Record cites this authorization', f'authorization {ah[:16]}…')
     scope = auth['scope']
@@ -406,6 +412,7 @@ def main():
             add(None, title, 'not broadcast yet')
             continue
         c = tx_on_chain(ref['network'], ref['hash'])
+        _RUN.setdefault('legs', {})[key] = _leg_facts(ref, c)  # values already fetched above; no new reads
         if not c['found']:
             add(False, title, 'XYO RPC does not know this transaction')
             continue
@@ -455,6 +462,7 @@ def main():
     if '--plumbing-tx' in sys.argv:
         h = sys.argv[sys.argv.index('--plumbing-tx') + 1]
         c = tx_on_chain('sequence', h)
+        _RUN.setdefault('legs', {})['plumbingTx'] = _leg_facts({'network': 'sequence', 'hash': h}, c)
         add(c['found'] and c['txHashOk'] and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['sameChain'] and c['inWindow'] and not c['integrity']['problems'],
             f'Chain plumbing on tx {h[:10]}…', f"block #{c['block']['block'] if c.get('block') else '?'}, signed time {c.get('time')}, head #{c['head']['block'] if c.get('head') else '?'}")
 
@@ -463,10 +471,154 @@ def main():
     sys.exit(0 if all(ok is not False for ok, _, _ in rows) else 1)
 
 
-if __name__ == '__main__':
+# ── Evidence receipt v0.1 (opt-in: --receipt <file>) ─────────────────────────────────────────
+# An OUTPUT LAYER ONLY. It reads values main() and tx_on_chain() already computed; it makes no
+# network request, changes no check, prints nothing to stdout and does not change exit codes.
+# Without --receipt the verifier behaves exactly as before.
+RECEIPT_SCHEMA = 'oxyon.evidence.verification-receipt'
+RECEIPT_VERSION = '0.1'
+PROCEDURE = 'oxyon.xl1.evidence-verify'
+_RUN = {}
+
+
+def _leg_facts(ref, c):
+    """What one on-chain leg established, read from the chain-check result already in hand."""
+    head, block = c.get('head') or {}, c.get('block') or {}
+    return {
+        'network': ref.get('network'), 'tx': ref.get('hash'),
+        'rpc': NETS.get(ref.get('network'), (None, None))[0],
+        'found': bool(c.get('found')),
+        'block': block.get('block'), 'blockHash': block.get('_hash'),
+        'finalizedHead': head.get('block'), 'final': bool(c.get('final')),
+        'signedTime': c.get('time'), 'producerAddress': c.get('producer'),
+    }
+
+
+def _check_status(ok):
+    return 'NOT_EVALUATED' if ok is None else 'VERIFIED' if ok else 'FAILED'
+
+
+def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_version, note=None):
+    """The receipt as a plain dict. Pure: no I/O, no network. Values are strings, safe integers,
+    booleans or null (the portable subset of oxyon-sjson-sha256/1)."""
+    rows = run.get('rows') or []
+    checks = [{'title': t, 'detail': str(d), 'status': _check_status(ok)} for ok, t, d in rows]
+    failed = sum(1 for c in checks if c['status'] == 'FAILED')
+    pending = sum(1 for c in checks if c['status'] == 'NOT_EVALUATED')
+    # Overall outcome. Only a run in which EVERY check passed and none was left undecided is
+    # VERIFIED; the exit code alone is not enough (exit 0 also allows [pending] checks).
+    if exit_code == 3:
+        status, reason = 'NOT_EVALUATED', 'a source could not be read (exit 3, UNAVAILABLE); nothing was concluded'
+    elif exit_code == 2:
+        status, reason = 'INCONCLUSIVE', 'a required file is missing (exit 2, INCOMPLETE); the evidence chain could not be followed'
+    elif exit_code == 1 or failed:
+        status, reason = 'FAILED', f'{failed} check(s) failed (exit {exit_code})'
+    elif exit_code != 0:
+        status, reason = 'NOT_EVALUATED', f'the verifier stopped unexpectedly (exit {exit_code})'
+    elif not checks:
+        status, reason = 'NOT_EVALUATED', 'no checks were run'
+    elif pending:
+        status, reason = 'INCONCLUSIVE', f'{pending} check(s) not evaluated; the run passed only what it could check'
+    else:
+        status, reason = 'VERIFIED', 'every check run by this procedure passed (scope limits below)'
+    if note:
+        reason = f'{reason}: {note}'
+    legs = run.get('legs') or {}
+    ev = run.get('evidence')
+    args = [a for a in argv[1:]]
+    return {
+        'schema': RECEIPT_SCHEMA, 'receiptVersion': RECEIPT_VERSION,
+        'procedure': {'id': PROCEDURE, 'verifier': 'verify/verify_evidence.py', 'verifierSha256': script_sha256,
+                      'python': python_version, 'standardLibraryOnly': True},
+        'performedAt': performed_at,
+        'outcome': {'status': status, 'reason': reason, 'exitCode': exit_code,
+                    'counts': {'verified': sum(1 for c in checks if c['status'] == 'VERIFIED'),
+                               'failed': failed, 'notEvaluated': pending}},
+        'checks': checks,
+        'scope': {
+            'signatures': {'status': 'NOT_EVALUATED',
+                           'reason': 'secp256k1 signatures are not checked by this standard-library verifier. '
+                                     'Signature checks use XYO\'s own validator, separately (see VERIFY.md).'},
+            'finality': {'rule': 'block height <= the finalized head reported by XYO RPC (finalizationViewer_head)',
+                         'trustDependency': 'XYO RPC: finality is as reported by the RPC; XYO publishes no finality rule '
+                                            'that this script checks independently',
+                         'independentlyEstablished': False,
+                         'legs': {k: {'block': v['block'], 'finalizedHead': v['finalizedHead'], 'final': v['final'],
+                                      'rpc': v['rpc']} for k, v in legs.items()}},
+            'producerAttribution': {'status': 'INFERRED',
+                                    'basis': 'the first address that signed the block (block.addresses[0]) is treated as '
+                                             'its producer; not cryptographically proven to be the producer',
+                                    'legs': {k: v['producerAddress'] for k, v in legs.items()}},
+            'chainCanonicity': {'status': 'INFERRED',
+                                'basis': 'blocks are read from XYO\'s RPC and block CDN; their hashes are recomputed here, '
+                                         'but which chain is canonical is as served by those endpoints'},
+        },
+        'evidence': ev,
+        'chain': {k: {'network': v['network'], 'tx': v['tx'], 'found': v['found'], 'block': v['block'],
+                      'blockHash': v['blockHash'], 'signedTime': v['signedTime']} for k, v in legs.items()},
+        'reproduce': {
+            'command': 'python verify/verify_evidence.py ' + ' '.join(args),
+            'needs': 'Python 3.9+ standard library; read access to the record files, the pinned source, '
+                     'and XYO\'s public RPC and block CDN',
+            'deterministic': 'the outcome status, check titles and statuses, evidence hashes, block numbers, block '
+                             'hashes and signed times should repeat on a re-run',
+            'mayDiffer': 'performedAt, finalizedHead, availability of sources (exit 3) and the verifier hash if the '
+                         'script changes. Receipts are not expected to be byte-identical between runs.',
+        },
+    }
+
+
+def _write_receipt(path, exit_code, note=None):
+    """Writes the receipt; any problem goes to stderr and never changes the verifier's exit code."""
+    import datetime
+    import platform
     try:
-        main()
-    except Unavailable as e:
-        # A network problem is not a verdict on the evidence: say so, and exit apart from 1 (fail).
-        print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
-        sys.exit(3)
+        with open(__file__, 'rb') as fh:
+            script_sha = hashlib.sha256(fh.read()).hexdigest()
+        receipt = build_receipt(_RUN, exit_code, sys.argv,
+                                datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                                script_sha, platform.python_version(), note)
+        with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+            json.dump(receipt, fh, indent=2, sort_keys=True, ensure_ascii=False)
+            fh.write('\n')
+        print(f'receipt ({receipt["outcome"]["status"]}) written to {path}', file=sys.stderr)
+    except Exception as e:  # the receipt must never alter the verification result
+        print(f'receipt not written: {type(e).__name__}: {e}', file=sys.stderr)
+
+
+def _take_receipt_arg():
+    """Removes '--receipt <path>' from sys.argv before main() reads it. Returns the path or None."""
+    if '--receipt' not in sys.argv:
+        return None
+    i = sys.argv.index('--receipt')
+    if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith('--'):
+        print('usage: --receipt <output file>', file=sys.stderr)
+        sys.exit(4)  # usage error, only possible when the new flag is misused
+    path = sys.argv[i + 1]
+    del sys.argv[i:i + 2]
+    return path
+
+
+if __name__ == '__main__':
+    receipt_path = _take_receipt_arg()
+    if receipt_path is None:
+        try:
+            main()
+        except Unavailable as e:
+            # A network problem is not a verdict on the evidence: say so, and exit apart from 1 (fail).
+            print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
+            sys.exit(3)
+    else:
+        code, note = 1, None
+        try:
+            main()
+        except SystemExit as e:
+            code = e.code if isinstance(e.code, int) else 1
+        except Unavailable as e:
+            print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
+            code, note = 3, str(e)
+        except BaseException as e:
+            _write_receipt(receipt_path, 99, f'{type(e).__name__}')
+            raise
+        _write_receipt(receipt_path, code, note)
+        sys.exit(code)
