@@ -243,17 +243,26 @@ python verify/verify_evidence.py <record> --receipt receipt.json
 
 | Field | What it says |
 |---|---|
-| `procedure` | Which script ran (`verifierSha256`) and the Python version |
+| `procedure` | Which script ran: `verifierSha256` (authoritative: the exact bytes that ran) and the Python version. `gitCommit` is the local checkout's HEAD when git can read it, otherwise `UNKNOWN`. `verifierMatchesCommit` says whether this one file differs from that commit; it does not claim the rest of the checkout is clean |
 | `performedAt` | When this run finished (UTC, from the local clock) |
-| `outcome.status` | `VERIFIED` only when **every** check passed and none was left `[pending]`. A `[pending]` check makes it `INCONCLUSIVE`, even though the exit code is 0. `FAILED` for exit 1, `INCONCLUSIVE` for exit 2, `NOT_EVALUATED` for exit 3 (nothing was concluded) |
-| `checks` | Every printed row, as `VERIFIED`, `FAILED` or `NOT_EVALUATED` |
+| `outcome.status` | Decided by **checks only**, never by statements. `VERIFIED` only when **every** check passed and none was left `[pending]`. A `[pending]` check makes it `INCONCLUSIVE`, even though the exit code is 0. `FAILED` for exit 1, `INCONCLUSIVE` for exit 2, `NOT_EVALUATED` for exit 3 (nothing was concluded) |
+| `checks` | Every printed row, word for word, with a `kind`. A `check` is `VERIFIED`, `FAILED` or `NOT_EVALUATED`. A `statement` (the Disclosure and "Oxyon's disclosure" rows, printed as `[ok]`) is `STATEMENT`: it is kept but is not a check and is not counted. Rows are classified where the verifier records them, not by their text. `outcome.counts` gives checks and `statements` separately (Record A: 13 checks, 3 statements) |
 | `scope.signatures` | Always `NOT_EVALUATED`: this script does not check secp256k1 signatures (see step 6) |
 | `scope.finality` | The rule used: block height ≤ the finalized head XYO's RPC reports. It is a trust in that RPC, not finality established independently |
 | `scope.producerAttribution` | `INFERRED`: the block's first signer is taken as its producer |
 | `evidence`, `chain` | The record, batch and authorization hashes, the source's sha256, and each transaction's block, block hash and signed time |
 | `reproduce` | The original invocation as an argument list (`argv`, no shell parsing), plus `command` (quoted for POSIX shells) and `commandWindows`. Run it from the same directory: paths are as given. The outcome, check results, hashes, blocks and signed times should repeat. `performedAt` and the finalized head will differ, so two receipts are not byte-identical |
 
-The receipt file is created new and never overwrites anything. If the path already exists (a file, a directory or any symbolic link), or if it is the evidence record however spelled (relative, `..` or a link), no receipt is written and the reason goes to stderr. The verdict and the exit code are unaffected.
+The receipt is written in full to a hidden `.receipt-*.partial` file in the same folder, flushed to disk, then published under its name in one exclusive step (a hard link) that fails if the name exists. The temporary file is always removed. So the final name holds a complete receipt or nothing, even if the run is interrupted or two runs race; only a hard kill can leave a stray `.partial` file. The receipt file is created new and never overwrites anything. If the path already exists (a file, a directory or any symbolic link), or if it is the evidence record however spelled (relative, `..` or a link), no receipt is written and the reason goes to stderr. The verdict and the exit code are unaffected.
+
+**The exit code is the evidence verdict only, not the receipt status.** Whether the receipt was written is reported on stderr, with one of two stable prefixes:
+
+- `receipt (<STATUS>) written to <path>`: success.
+- `receipt not written: <reason>`: nothing at the path was created or changed.
+
+Scripts should check the stderr line, or that the file exists.
+
+**Paths and privacy:** arguments are recorded exactly as given, so that the run can be reproduced. Absolute paths can therefore show local folder or user names. Run from the repository with relative paths, as in the examples above, before you share a receipt.
 
 A receipt describes one run. It is not evidence by itself: re-run the command, and the result that counts is yours.
 

@@ -334,6 +334,10 @@ def main():
     rows = []
     _RUN['rows'] = rows  # receipt layer reads the same rows that are printed; nothing else changes
     add = lambda ok, title, detail: rows.append((ok, title, detail))
+    # A disclosure is printed exactly like a passing row ([ok]), but it is a statement, not a check.
+    # Its row index is recorded so the receipt can tell the two apart without matching text.
+    _RUN['statements'] = statements = set()
+    state = lambda title, detail: (statements.add(len(rows)), rows.append((True, title, detail)))
     bundle = json.load(open(sys.argv[1], encoding='utf-8'))
     if 'receipt' in bundle:
         bundle = load_repo_record(sys.argv[1])
@@ -435,9 +439,9 @@ def main():
             wrong = [k for k, v in facts.items() if claimed.get(k) != v]
             add(not wrong, f"Published receipt matches the chain ({key})", 'block, block hash, signed time, block producer and chain all match' if not wrong else f"differs: {', '.join(wrong)}")
             if c['producer'] in (record['subject'].get('address'), auth['issuer'], auth['delegate']):
-                add(True, f'Disclosure ({key})', f"included by {c['producer'][:8]}…, a party to this evidence; inclusion is not verification")
+                state(f'Disclosure ({key})', f"included by {c['producer'][:8]}…, a party to this evidence; inclusion is not verification")
             if claimed.get('inclusionNote'):
-                add(True, f"Oxyon's disclosure ({key}, a statement, not a check)", claimed['inclusionNote'])
+                state(f"Oxyon's disclosure ({key}, a statement, not a check)", claimed['inclusionNote'])
 
     if bundle.get('_blocks', {}).keys() >= {'anchorTx', 'authorizationTx'}:
         lo, hi = bundle['_blocks']['authorizationTx'], bundle['_blocks']['anchorTx']
@@ -498,13 +502,47 @@ def _check_status(ok):
     return 'NOT_EVALUATED' if ok is None else 'VERIFIED' if ok else 'FAILED'
 
 
-def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_version, note=None):
+def _git_provenance(script_path, runner=None):
+    """The git commit of the checkout holding the verifier, when it can be determined locally, and
+    whether the verifier file itself differs from that commit. Never a network call. Anything that
+    cannot be established is 'UNKNOWN'; the verifier's sha256 stays the authoritative identifier."""
+    import os
+    import re
+    import subprocess
+    runner = runner or subprocess.run
+    out = {'gitCommit': 'UNKNOWN', 'verifierMatchesCommit': 'UNKNOWN',
+           'basis': 'git metadata could not be read (not a git checkout, or git is unavailable)'}
+    here = os.path.dirname(os.path.abspath(script_path))
+    try:
+        head = runner(['git', '-C', here, 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=5)
+        commit = (head.stdout or '').strip()
+        if head.returncode != 0 or not re.fullmatch(r'[0-9a-f]{40}', commit):
+            return out
+        out['gitCommit'] = commit
+        st = runner(['git', '-C', here, 'status', '--porcelain', '--', os.path.basename(script_path)],
+                    capture_output=True, text=True, timeout=5)
+        if st.returncode == 0:
+            out['verifierMatchesCommit'] = (st.stdout or '').strip() == ''
+        out['basis'] = ('HEAD of the local checkout; verifierMatchesCommit compares only verify/verify_evidence.py '
+                        'with that commit (the rest of the checkout is not checked)')
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return out
+
+
+def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_version, note=None, provenance=None):
     """The receipt as a plain dict. Pure: no I/O, no network. Values are strings, safe integers,
     booleans or null (the portable subset of oxyon-sjson-sha256/1)."""
     rows = run.get('rows') or []
-    checks = [{'title': t, 'detail': str(d), 'status': _check_status(ok)} for ok, t, d in rows]
-    failed = sum(1 for c in checks if c['status'] == 'FAILED')
-    pending = sum(1 for c in checks if c['status'] == 'NOT_EVALUATED')
+    statements = set(run.get('statements') or ())
+    # Rows recorded as statements (disclosures) are kept, word for word, but they are not checks:
+    # they never count as verified and never decide the outcome.
+    checks = [{'title': t, 'detail': str(d), 'kind': 'statement' if i in statements else 'check',
+               'status': 'STATEMENT' if i in statements else _check_status(ok)}
+              for i, (ok, t, d) in enumerate(rows)]
+    real = [c for c in checks if c['kind'] == 'check']
+    failed = sum(1 for c in real if c['status'] == 'FAILED')
+    pending = sum(1 for c in real if c['status'] == 'NOT_EVALUATED')
     # Overall outcome. Only a run in which EVERY check passed and none was left undecided is
     # VERIFIED; the exit code alone is not enough (exit 0 also allows [pending] checks).
     if exit_code == 3:
@@ -515,7 +553,7 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
         status, reason = 'FAILED', f'{failed} check(s) failed (exit {exit_code})'
     elif exit_code != 0:
         status, reason = 'NOT_EVALUATED', f'the verifier stopped unexpectedly (exit {exit_code})'
-    elif not checks:
+    elif not real:
         status, reason = 'NOT_EVALUATED', 'no checks were run'
     elif pending:
         status, reason = 'INCONCLUSIVE', f'{pending} check(s) not evaluated; the run passed only what it could check'
@@ -530,14 +568,19 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
     import shlex
     import subprocess
     rerun = ['python'] + [str(a) for a in argv]
+    prov = provenance or {'gitCommit': 'UNKNOWN', 'verifierMatchesCommit': 'UNKNOWN', 'basis': 'not determined'}
     return {
         'schema': RECEIPT_SCHEMA, 'receiptVersion': RECEIPT_VERSION,
         'procedure': {'id': PROCEDURE, 'verifier': 'verify/verify_evidence.py', 'verifierSha256': script_sha256,
-                      'python': python_version, 'standardLibraryOnly': True},
+                      'python': python_version, 'standardLibraryOnly': True,
+                      'gitCommit': prov['gitCommit'], 'verifierMatchesCommit': prov['verifierMatchesCommit'],
+                      'provenanceBasis': prov['basis'],
+                      'authoritativeIdentifier': 'verifierSha256 (the exact script bytes that ran)'},
         'performedAt': performed_at,
         'outcome': {'status': status, 'reason': reason, 'exitCode': exit_code,
-                    'counts': {'verified': sum(1 for c in checks if c['status'] == 'VERIFIED'),
-                               'failed': failed, 'notEvaluated': pending}},
+                    'counts': {'verified': sum(1 for c in real if c['status'] == 'VERIFIED'),
+                               'failed': failed, 'notEvaluated': pending,
+                               'statements': len(checks) - len(real)}},
         'checks': checks,
         'scope': {
             'signatures': {'status': 'NOT_EVALUATED',
@@ -573,6 +616,8 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
                              'hashes and signed times should repeat on a re-run',
             'mayDiffer': 'performedAt, finalizedHead, availability of sources (exit 3) and the verifier hash if the '
                          'script changes. Receipts are not expected to be byte-identical between runs.',
+            'pathPrivacy': 'arguments are recorded exactly as given, so absolute paths may show local folder or user '
+                           'names; run with paths relative to the repository before sharing a receipt',
         },
     }
 
@@ -594,8 +639,37 @@ def _receipt_path_problem(path, inputs):
     return None
 
 
+def _publish_receipt(path, text):
+    """Creates `path` holding `text`, completely or not at all, and never over an existing file.
+
+    The text goes to a temporary file in the SAME directory (same filesystem), is flushed to disk,
+    and is then published with os.link: an atomic, exclusive step that fails if `path` exists, so a
+    concurrent writer or a file that appeared meanwhile is never replaced. The temporary file is
+    always removed. An interruption leaves either the complete receipt or no receipt at the final
+    name; a hard kill can leave a hidden '.receipt-*.partial' file, never a partial receipt."""
+    import os
+    import tempfile
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(prefix='.receipt-', suffix='.partial', dir=directory)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8', newline='\n') as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.link(tmp, path)  # FileExistsError if anything is already at `path`
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
 def _write_receipt(path, exit_code, note=None):
-    """Writes the receipt; any problem goes to stderr and never changes the verifier's exit code."""
+    """Writes the receipt. The verifier's exit code is the evidence verdict only; whether the receipt
+    was written is reported on stderr with one of two stable prefixes:
+        'receipt (<STATUS>) written to <path>'   success
+        'receipt not written: <reason>'           failure (nothing at <path> was created or changed)
+    A receipt problem never changes the exit code."""
     import datetime
     import platform
     try:
@@ -607,12 +681,13 @@ def _write_receipt(path, exit_code, note=None):
             script_sha = hashlib.sha256(fh.read()).hexdigest()
         receipt = build_receipt(_RUN, exit_code, sys.argv,
                                 datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                                script_sha, platform.python_version(), note)
+                                script_sha, platform.python_version(), note, _git_provenance(__file__))
         text = json.dumps(receipt, indent=2, sort_keys=True, ensure_ascii=False) + '\n'  # complete before any file exists
-        # 'x' = exclusive creation: fails if the path appeared since the check, so nothing is ever overwritten.
-        with open(path, 'x', encoding='utf-8', newline='\n') as fh:
-            fh.write(text)
+        _publish_receipt(path, text)
         print(f'receipt ({receipt["outcome"]["status"]}) written to {path}', file=sys.stderr)
+    except FileExistsError:
+        print(f'receipt not written: {path} already exists (created by something else meanwhile); '
+              'a receipt never overwrites a file', file=sys.stderr)
     except Exception as e:  # the receipt must never alter the verification result
         print(f'receipt not written: {type(e).__name__}: {e}', file=sys.stderr)
 

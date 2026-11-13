@@ -34,8 +34,8 @@ ve = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ve)
 
 
-def receipt(rows, code, legs=None):
-    return ve.build_receipt({'rows': rows, 'legs': legs or {}}, code, ['verify_evidence.py', 'r.json'],
+def receipt(rows, code, legs=None, statements=None):
+    return ve.build_receipt({'rows': rows, 'legs': legs or {}, 'statements': statements or set()}, code, ['verify_evidence.py', 'r.json'],
                             '2026-01-01T00:00:00Z', 'a' * 64, '3.13.5')
 
 
@@ -126,7 +126,8 @@ class Disclosures(unittest.TestCase):
 
 class NoNewReads(unittest.TestCase):
     def test_receipt_code_has_no_network_calls(self):
-        for fn in (ve.build_receipt, ve._write_receipt, ve._leg_facts, ve._take_receipt_arg, ve._receipt_path_problem):
+        for fn in (ve.build_receipt, ve._write_receipt, ve._leg_facts, ve._take_receipt_arg, ve._receipt_path_problem,
+                   ve._publish_receipt, ve._git_provenance):
             src = inspect.getsource(fn)
             for call in ('rpc(', 'fetch(', 'tx_on_chain(', 'urlopen('):
                 self.assertNotIn(call, src, f'{fn.__name__} calls {call}')
@@ -280,6 +281,208 @@ class AwkwardPaths(unittest.TestCase):
                 self.assertEqual(win.stdout, first.stdout)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+# Row titles as printed for the real anchored Record A (oxyon-evidence, Sequence, 2026-11-13 run):
+# 13 checks and 3 statements. Statement rows are the ones the verifier records with state().
+RECORD_A_ROWS = [
+    (True, 'Snapshot bytes match the record', '…'), (True, 'Record is in the batch', '…'),
+    (True, 'Record cites this authorization', '…'), (True, 'Authorization covers this record', '…'),
+    (True, 'Transaction integrity (anchorTx)', '…'), (True, 'Anchor committed on chain by the anchoring key', '…'),
+    (True, 'Published receipt matches the chain (anchorTx)', '…'), (True, 'Disclosure (anchorTx)', '…'),
+    (True, "Oxyon's disclosure (anchorTx, a statement, not a check)", '…'),
+    (True, 'Transaction integrity (authorizationTx)', '…'), (True, 'Authorization committed on chain by Oxyon', '…'),
+    (True, 'Published receipt matches the chain (authorizationTx)', '…'),
+    (True, "Oxyon's disclosure (authorizationTx, a statement, not a check)", '…'),
+    (True, 'No revocation by the issuer between authorization and anchor', '…'),
+    (True, 'Anchor block time is inside the authorization window', '…'),
+    (True, 'Authorization was on chain before the anchor', '…'),
+]
+RECORD_A_STATEMENTS = {7, 8, 12}
+
+
+class Statements(unittest.TestCase):
+    """D-1: disclosures are statements, not checks."""
+
+    def test_record_a_is_13_checks_and_3_statements(self):
+        r = receipt(RECORD_A_ROWS, 0, statements=RECORD_A_STATEMENTS)
+        self.assertEqual(r['outcome']['status'], 'VERIFIED')
+        self.assertEqual(r['outcome']['counts'], {'verified': 13, 'failed': 0, 'notEvaluated': 0, 'statements': 3})
+        kinds = [c['kind'] for c in r['checks']]
+        self.assertEqual(kinds.count('check'), 13)
+        self.assertEqual(kinds.count('statement'), 3)
+
+    def test_statements_keep_their_text_and_never_read_as_verified(self):
+        r = receipt(RECORD_A_ROWS, 0, statements=RECORD_A_STATEMENTS)
+        for i in RECORD_A_STATEMENTS:
+            self.assertEqual(r['checks'][i]['status'], 'STATEMENT')
+            self.assertEqual(r['checks'][i]['title'], RECORD_A_ROWS[i][1])
+        self.assertEqual(len(r['checks']), 16, 'every printed row is kept')
+
+    def test_statements_alone_are_not_evidence(self):
+        r = receipt([(True, 'Disclosure (anchorTx)', '')], 0, statements={0})
+        self.assertEqual(r['outcome']['status'], 'NOT_EVALUATED')
+
+    def test_statements_cannot_hide_a_failure_or_a_pending_check(self):
+        self.assertEqual(receipt([(False, 'a', ''), (True, 'd', '')], 1, statements={1})['outcome']['status'], 'FAILED')
+        self.assertEqual(receipt([(None, 'a', ''), (True, 'd', '')], 0, statements={1})['outcome']['status'], 'INCONCLUSIVE')
+        self.assertEqual(receipt([(True, 'a', ''), (True, 'd', '')], 3, statements={1})['outcome']['status'], 'NOT_EVALUATED')
+
+    def test_classification_is_made_where_the_row_is_recorded(self):
+        src = inspect.getsource(ve.main)
+        self.assertIn("state(f'Disclosure ({key})'", src)
+        self.assertIn('state(f"Oxyon\'s disclosure ({key}, a statement, not a check)"', src)
+        self.assertNotIn("add(True, f'Disclosure", src)
+        self.assertNotIn('add(True, f"Oxyon\'s disclosure', src)
+
+    def test_receipt_does_not_classify_by_row_text(self):
+        body = inspect.getsource(ve.build_receipt).split('"""', 2)[2]
+        code = ' '.join(line.split('#', 1)[0] for line in body.splitlines())  # executable code only, comments dropped
+        self.assertNotIn('disclosure', code.lower(), 'the receipt must not classify by matching row text')
+
+
+class PublishSafety(unittest.TestCase):
+    """Interrupted, failed and concurrent writes leave a complete receipt or none."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.path = os.path.join(self.d, 'r.json')
+
+    def tearDown(self):
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def leftovers(self):
+        return [f for f in os.listdir(self.d) if f.startswith('.receipt-')]
+
+    def test_complete_receipt_is_published(self):
+        ve._publish_receipt(self.path, '{"a": 1}\n')
+        with open(self.path, encoding='utf-8') as fh:
+            self.assertEqual(fh.read(), '{"a": 1}\n')
+        self.assertEqual(self.leftovers(), [])
+
+    def test_interrupted_before_publish_leaves_nothing(self):
+        saved = os.link
+
+        def interrupted(*a, **k):
+            raise KeyboardInterrupt
+
+        os.link = interrupted
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                ve._publish_receipt(self.path, '{"a": 1}\n')
+        finally:
+            os.link = saved
+        self.assertFalse(os.path.exists(self.path), 'no receipt at the final name')
+        self.assertEqual(self.leftovers(), [], 'temporary file removed')
+
+    def test_failed_write_leaves_nothing(self):
+        saved = os.fsync
+
+        def broken(*a, **k):
+            raise OSError('disk full (simulated)')
+
+        os.fsync = broken
+        try:
+            with self.assertRaises(OSError):
+                ve._publish_receipt(self.path, '{"a": 1}\n')
+        finally:
+            os.fsync = saved
+        self.assertFalse(os.path.exists(self.path))
+        self.assertEqual(self.leftovers(), [])
+
+    def test_existing_file_is_never_replaced(self):
+        with open(self.path, 'w', encoding='utf-8') as fh:
+            fh.write('keep me')
+        with self.assertRaises(FileExistsError):
+            ve._publish_receipt(self.path, '{"a": 1}\n')
+        with open(self.path, encoding='utf-8') as fh:
+            self.assertEqual(fh.read(), 'keep me')
+        self.assertEqual(self.leftovers(), [])
+
+    def test_concurrent_writers_exactly_one_wins(self):
+        import threading
+        texts = [json.dumps({'writer': i, 'pad': 'x' * 20000}) + '\n' for i in range(8)]
+        results, start = [None] * 8, threading.Barrier(8)
+
+        def go(i):
+            start.wait()
+            try:
+                ve._publish_receipt(self.path, texts[i])
+                results[i] = 'ok'
+            except FileExistsError:
+                results[i] = 'exists'
+
+        threads = [threading.Thread(target=go, args=(i,)) for i in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(results.count('ok'), 1, results)
+        self.assertEqual(results.count('exists'), 7, results)
+        with open(self.path, encoding='utf-8') as fh:
+            self.assertIn(fh.read(), texts, 'the published file is one complete receipt')
+        self.assertEqual(self.leftovers(), [])
+
+    def test_write_failure_is_reported_and_verdict_unchanged(self):
+        missing_dir = os.path.join(self.d, 'no such folder', 'r.json')
+        plain = run(PENDING)
+        p = run(PENDING, '--receipt', missing_dir)
+        self.assertEqual(p.returncode, plain.returncode, 'exit code is the verdict, not the receipt status')
+        self.assertEqual(p.stdout, plain.stdout)
+        self.assertIn('receipt not written:', p.stderr)
+        self.assertNotIn('written to', p.stderr)
+
+    def test_success_is_reported_on_stderr(self):
+        p = run(PENDING, '--receipt', self.path)
+        self.assertRegex(p.stderr, r'receipt \(INCONCLUSIVE\) written to ')
+        self.assertTrue(os.path.exists(self.path))
+
+
+class Provenance(unittest.TestCase):
+    def test_commit_from_this_checkout_when_git_is_available(self):
+        prov = ve._git_provenance(VERIFIER)
+        try:
+            head = subprocess.run(['git', '-C', HERE, 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=5)
+        except OSError:
+            self.skipTest('git is not installed')
+        if head.returncode != 0:
+            self.assertEqual(prov['gitCommit'], 'UNKNOWN')
+            return
+        self.assertEqual(prov['gitCommit'], head.stdout.strip())
+        st = subprocess.run(['git', '-C', HERE, 'status', '--porcelain', '--', 'verify_evidence.py'],
+                            capture_output=True, text=True, timeout=5)
+        self.assertEqual(prov['verifierMatchesCommit'], st.stdout.strip() == '')
+
+    def test_no_git_is_unknown_never_invented(self):
+        def no_git(*a, **k):
+            raise FileNotFoundError('git')
+        prov = ve._git_provenance(VERIFIER, runner=no_git)
+        self.assertEqual((prov['gitCommit'], prov['verifierMatchesCommit']), ('UNKNOWN', 'UNKNOWN'))
+
+    def test_not_a_checkout_is_unknown(self):
+        class R:
+            returncode, stdout = 128, ''
+        prov = ve._git_provenance(VERIFIER, runner=lambda *a, **k: R())
+        self.assertEqual(prov['gitCommit'], 'UNKNOWN')
+
+    def test_modified_verifier_is_reported(self):
+        class Head:
+            returncode, stdout = 0, 'a' * 40 + '\n'
+
+        class Dirty:
+            returncode, stdout = 0, ' M verify/verify_evidence.py\n'
+
+        answers = iter([Head(), Dirty()])
+        prov = ve._git_provenance(VERIFIER, runner=lambda *a, **k: next(answers))
+        self.assertEqual(prov['gitCommit'], 'a' * 40)
+        self.assertIs(prov['verifierMatchesCommit'], False)
+
+    def test_receipt_keeps_sha256_as_the_authoritative_identifier(self):
+        r = ve.build_receipt({'rows': []}, 0, ['v'], 't', 'b' * 64, '3', provenance=None)
+        self.assertEqual(r['procedure']['verifierSha256'], 'b' * 64)
+        self.assertEqual(r['procedure']['gitCommit'], 'UNKNOWN')
+        self.assertIn('verifierSha256', r['procedure']['authoritativeIdentifier'])
+        self.assertIn('absolute paths', r['reproduce']['pathPrivacy'])
 
 
 if __name__ == '__main__':
