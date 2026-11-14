@@ -36,7 +36,9 @@ def tx(rec, sender=ISSUER, signers=None, chain=CHAIN, schema=v.REVOCATION_SCHEMA
 def block(n, top=(), elevated=(), with_records=()):
     """A block whose own payload_hashes list `top` (its transactions); `elevated` payloads ride along unlisted."""
     ps = list(top) + list(elevated) + list(with_records)
-    return ({'schema': 'network.xyo.boundwitness', 'block': n, 'payload_hashes': [v.xyo_hash(p) for p in top]}, ps)
+    bw = {'schema': 'network.xyo.boundwitness', 'block': n, 'chain': CHAIN, 'payload_hashes': [v.xyo_hash(p) for p in top]}
+    bw['_hash'] = v.xyo_hash(bw)
+    return (bw, ps)
 
 
 class World:
@@ -58,7 +60,9 @@ class World:
         assert method == 'accountBalanceViewer_qualifiedAccountBalanceHistories' and params == [[ISSUER], {}]
         if self.rpc_error:
             raise self.rpc_error
-        return [{ISSUER: self.history}, {'head': 'ab' * 32, 'range': self.span}]
+        self.calls = getattr(self, 'calls', 0) + 1
+        hist = self.history if self.calls == 1 or not hasattr(self, 'later') else self.later
+        return [{ISSUER: hist}, {'head': f'{self.calls:02x}' * 32, 'range': self.span}]
 
 
 def sent(n, frm=ISSUER):
@@ -180,6 +184,65 @@ class Revocation(unittest.TestCase):
         w = World(history=[sent(5000, frm=OTHER)])
         self.assertIs(self.run_check(w)[0], True)
         self.assertEqual(w.fetched, [])
+
+    # Sprint 012b: malformed targets, several transactions per block, chain-view consistency
+    def test_malformed_revocation_record_is_not_evaluated(self):
+        for rec in ({'schema': v.REVOCATION_SCHEMA},                                  # no target
+                    {'schema': v.REVOCATION_SCHEMA, 'revokes': 'not-a-hash'},         # not a hash
+                    {'schema': v.REVOCATION_SCHEMA, 'revokes': AUTH.upper()},         # not lowercase hex
+                    {'schema': v.REVOCATION_SCHEMA, 'revokes': [AUTH]},               # not a string
+                    {'schema': 'something.else', 'revokes': AUTH}):                   # schema metadata disagrees
+            w = World({5000: block(5000, top=[tx(rec)], with_records=[rec])}, [sent(5000)])
+            ok, detail = self.run_check(w)
+            self.assertIsNone(ok, rec)
+            self.assertIn('malformed', detail)
+
+    def test_every_issuer_transaction_in_a_block_is_inspected(self):
+        r, a = revocation(), {'schema': 'oxyon.evidence.authorization.v1', 'x': 3}
+        other = revocation(revokes='ee' * 32)
+        for order in ([tx(a, schema='oxyon.evidence.authorization.v1'), tx(other), tx(r)],
+                      [tx(r), tx(a, schema='oxyon.evidence.authorization.v1')]):
+            w = World({5000: block(5000, top=order, with_records=[r, other])}, [sent(5000)])
+            self.assertIs(self.run_check(w)[0], False)
+            w = World({LO + 2: block(LO + 2, top=order, with_records=[r, other])})
+            self.assertIs(self.run_check(w, hi=SHORT_HI)[0], False)
+
+    def test_block_not_matching_the_chain_view_is_not_evaluated(self):
+        a = {'schema': 'oxyon.evidence.authorization.v1', 'x': 4}
+        good = block(5000, top=[tx(a, schema='oxyon.evidence.authorization.v1')])
+        wrong_number = (dict(good[0], block=5001), good[1])
+        wrong_number[0]['_hash'] = v.xyo_hash(wrong_number[0])
+        wrong_chain = (dict(good[0], chain='ff' * 20), good[1])
+        wrong_chain[0]['_hash'] = v.xyo_hash(wrong_chain[0])
+        bad_hash = (dict(good[0], _hash='00' * 32), good[1])
+        no_hash = ({k: x for k, x in good[0].items() if k != '_hash'}, good[1])
+        for b in (wrong_number, wrong_chain, bad_hash, no_hash):
+            ok, detail = self.run_check(World({5000: b}, [sent(5000)]))
+            self.assertIsNone(ok, b[0])
+            self.assertIn('chain view is inconsistent', detail)
+        tampered = (dict(block(LO + 1)[0], _hash='00' * 32), [])  # the direct scan checks the view too
+        self.assertIsNone(self.run_check(World({LO + 1: tampered}), hi=SHORT_HI)[0])
+
+    def test_history_changing_during_the_check_is_not_evaluated(self):
+        a = {'schema': 'oxyon.evidence.authorization.v1', 'x': 5}
+        w = World({5000: block(5000, top=[tx(a, schema='oxyon.evidence.authorization.v1')])}, [sent(5000)])
+        w.later = [sent(5000), sent(6000)]
+        ok, detail = self.run_check(w)
+        self.assertIsNone(ok)
+        self.assertIn('changed during the check', detail)
+
+    def test_history_views_are_recorded(self):
+        a = {'schema': 'oxyon.evidence.authorization.v1', 'x': 6}
+        w = World({5000: block(5000, top=[tx(a, schema='oxyon.evidence.authorization.v1')])}, [sent(5000)])
+        facts, old = {}, (v.fetch, v.rpc)
+        v.fetch, v.rpc = w.fetch, w.rpc
+        try:
+            ok, _ = v.revocation_check('sequence', ISSUER, AUTH, CHAIN, LO, HI, None, facts)
+        finally:
+            v.fetch, v.rpc = old
+        self.assertIs(ok, True)
+        self.assertEqual([h['issuerBlocks'] for h in facts['history']], [[5000], [5000]])
+        self.assertEqual(len({h['head'] for h in facts['history']}), 2)
 
     # Documented limitation, and the direct scan as oracle
     def test_revocation_hidden_from_history_is_a_disclosed_trust(self):
