@@ -378,6 +378,25 @@ To reproduce the rule by hand:
 
 There should be none.
 
+## 10b. WinLEW airdrop records: snapshot on XL1, payouts on Solana
+
+Two record types, built by `tools/airdrop.mjs` and anchored with `tools/evidence.mjs anchor --content`.
+
+- **`winlew.airdrop.snapshot`** freezes who is paid and how much, **before any token moves**.
+  - It lists Solana wallets (unique, in order), with amounts in base units, the token mint and decimals, the treasury, the excluded project addresses, and the rule text.
+  - **Source:** the WinLEW airdrop registry (`!register`). The list is off chain, so what XL1 proves is **when** it was fixed, not who registered.
+  - **Checks:** well formed; unique wallets in order; totals add up; no excluded or treasury address paid.
+  - **The rule** is printed as Oxyon's statement, not a check.
+- **`winlew.airdrop.distribution`** names the anchored snapshot record and lists, for every recipient, the Solana transaction that paid it.
+  - The verifier loads the snapshot record from this repository and re-hashes it. The transfer list must match the snapshot exactly: same wallets once each, same amounts, token and treasury.
+  - For every signature, it reads the transaction from Solana (`getTransaction`, `finalized`; default `https://api.mainnet-beta.solana.com`, override with `--solana-rpc <url>` or `SOLANA_RPC`). It checks that the transaction succeeded and that the token balances of that mint moved **exactly** the listed amounts from the treasury to those wallets, with the snapshot's decimals and no other recipient.
+  - **Ordering:** the snapshot's XL1 anchor time must be at or before the first payout's Solana block time.
+  - Every payout can also be opened on Solscan (`https://solscan.io/tx/<signature>`).
+- **Not established:**
+  - **Solana finality:** as the Solana RPC reports it.
+  - **Solana signatures:** not checked by this standard-library script. A transaction the RPC returns as finalized is trusted to be validly signed.
+  - **Fairness:** whether the rule is fair, or the registry complete.
+
 ## 11. Tests (standard library only; all but selftest run offline)
 
 | Command | What it shows |
@@ -390,6 +409,7 @@ There should be none.
 | `python verify/test_receipt_check.py` | Offline: `receipt_check.py` accepts valid 0.1 and 0.2 receipts, including pending and unavailable ones; rejects malformed, unsupported, altered (outcome, counts, hidden failure), incomplete and impossible receipts; never echoes receipt text as a command; uses no network and runs nothing |
 | `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
 | `python verify/test_revocation.py` | Offline, simulated chain. A valid issuer revocation of this authorization fails the record (direct and history scans); an elevated bound witness, a forged `from`, another sender, another chain and a revocation of another authorization never count. A revocation whose record cannot be read, or whose published copy does not re-hash, is not evaluated. A history that is unavailable, malformed, short of the interval, or inconsistent with its blocks, and a missing block, are not evaluated. Duplicates are read once and incoming transfers are not candidates. A revocation hidden from XYO's history is missed by the history scan (the disclosed trust) and found by the direct scan. Also: malformed revocation records, several issuer transactions in one block, blocks that do not match the chain view, and a history that changes during the check |
+| `python verify/test_airdrop.py` | Offline, synthetic wallets, simulated Solana. Snapshot shape problems are caught (duplicates, order, totals, non-Solana addresses, fractional amounts, a paid treasury, no recipients). An exact distribution verifies, including one transaction paying several wallets. A list that differs from the snapshot fails. Solana disagreeing fails: wrong amount, recipient, sender, token or decimals; a failed or missing transaction; an extra recipient. A payout before the snapshot's anchor fails. An unreachable Solana RPC, a non-final anchor, and a missing or tampered snapshot are not evaluated |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
 Run them with `python -I` to keep the current directory off Python's import path.
