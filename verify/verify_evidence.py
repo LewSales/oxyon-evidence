@@ -263,11 +263,24 @@ def revocations_in_block(bw, ps, issuer, auth_hash, chain_id, lookup=None):
             if rec is None and want and lookup:
                 rec = lookup(want)
                 rec = rec if isinstance(rec, dict) and xyo_hash(rec) == want else None
-            if rec is None:
-                unreadable.append(h)
-            elif rec.get('revokes') == auth_hash:
+            if rec is None or not well_formed_revocation(rec):
+                unreadable.append(h)  # absent, not matching its hash, or malformed: its target cannot be read
+            elif rec['revokes'] == auth_hash:
                 revoked = True
     return revoked, unreadable, issuer_txs
+
+
+def well_formed_revocation(rec):
+    """A revocation record names its schema and exactly one target: a 64-hex authorization hash."""
+    t = rec.get('revokes')
+    return (rec.get('schema') == REVOCATION_SCHEMA and isinstance(t, str) and len(t) == 64
+            and all(c in '0123456789abcdef' for c in t))
+
+
+def block_matches_view(bw, n, chain_id):
+    """The block read is the one asked for, on the expected chain, and its hash recomputes (Sprint 012b)."""
+    return (isinstance(bw, dict) and bw.get('block') == n and bw.get('chain') == chain_id
+            and isinstance(bw.get('_hash'), str) and xyo_hash(bw) == bw['_hash'])
 
 
 class HistoryIncomplete(Exception):
@@ -296,7 +309,7 @@ def issuer_outgoing_blocks(net, issuer, lo, hi):
             raise HistoryIncomplete('balance history entry malformed')
         if e[2].get('from') == issuer and lo <= e[0]['block'] <= hi:
             out.add(e[0]['block'])
-    return sorted(out), span
+    return sorted(out), span, r[1].get('head')
 
 
 def published_revocation(root, net):
@@ -311,23 +324,33 @@ def published_revocation(root, net):
     return lookup if root else None
 
 
-def revocation_check(net, issuer, auth_hash, chain_id, lo, hi, lookup=None):
+def revocation_check(net, issuer, auth_hash, chain_id, lo, hi, lookup=None, facts=None):
     """(ok, detail): True only after a complete check found no qualifying revocation; False when one revokes this
-    authorization; None when the check could not be completed (never a pass)."""
+    authorization; None when the check could not be completed (never a pass). `facts` (a dict) receives the history
+    views used, for the receipt. XYO's API offers no atomic snapshot, so none is claimed: the history is read before
+    and after the block reads and must list the same issuer blocks, and every block read must match the chain view."""
+    facts = {} if facts is None else facts
     try:
         direct = hi - lo <= DIRECT_SCAN_LIMIT
         if direct:
             blocks, how, span = list(range(lo, hi + 1)), f'scanned every block #{lo}–#{hi} on chain', None
         else:
-            blocks, span = issuer_outgoing_blocks(net, issuer, lo, hi)
+            blocks, span, head = issuer_outgoing_blocks(net, issuer, lo, hi)
+            facts['history'] = [{'head': head, 'range': span, 'issuerBlocks': blocks}]
             how = (f"interval of {hi - lo:,} blocks: checked the issuer's {len(blocks)} outgoing-transaction block(s) in "
                    f"#{lo}–#{hi}, as listed by XYO RPC's balance history (complete as XYO reports it, #{span[0]}–#{span[1]})")
         found, unreadable = [], []
         for n in blocks:
             try:
-                bw, ps = json.loads(fetch(f"{NETS[net][1]}/block/number/{n}.json"))
+                raw = json.loads(fetch(f"{NETS[net][1]}/block/number/{n}.json"))
+                bw, ps = raw
             except urllib.error.HTTPError:
                 return None, f'block #{n} could not be read, so the revocation check is incomplete; not evaluated'
+            except (TypeError, ValueError):
+                return None, f'block #{n} is malformed, so the revocation check is incomplete; not evaluated'
+            if not block_matches_view(bw, n, chain_id):
+                return None, (f'block #{n} as served is not block #{n} of this chain with a hash that recomputes, so the chain '
+                              'view is inconsistent; not evaluated')
             rev, unk, txs = revocations_in_block(bw, ps, issuer, auth_hash, chain_id, lookup)
             if not direct and not txs:
                 return None, (f'the balance history lists an issuer transfer in block #{n}, but that block has no transaction '
@@ -335,11 +358,18 @@ def revocation_check(net, issuer, auth_hash, chain_id, lo, hi, lookup=None):
             if rev:
                 found.append(n)
             unreadable += [(n, u) for u in unk]
+        if not direct:
+            again, span2, head2 = issuer_outgoing_blocks(net, issuer, lo, hi)
+            facts['history'].append({'head': head2, 'range': span2, 'issuerBlocks': again})
+            if again != blocks:
+                return None, (f"XYO RPC's balance history changed during the check (issuer blocks {blocks} then {again}), "
+                              'so no single view was checked; not evaluated')
         if found:
             return False, f'{how}; revocation of this authorization in #{found}'
         if unreadable:
-            return None, (f'{how}; an issuer revocation transaction in #{unreadable[0][0]} commits a record that is neither in the '
-                          'block nor published in keys/<network>/revocations/, so its target cannot be read; not evaluated')
+            return None, (f'{how}; an issuer revocation transaction in #{unreadable[0][0]} commits a record that is not in the block, '
+                          'not published in keys/<network>/revocations/ under its hash, or malformed, so its target cannot be '
+                          'read; not evaluated')
         return True, f'{how}; {REVOCATION_DEFINITION}'
     except HistoryIncomplete as e:
         return None, f'interval #{lo}–#{hi} is longer than {DIRECT_SCAN_LIMIT:,} blocks and {e}; not evaluated'
@@ -599,9 +629,9 @@ def main():
     if bundle.get('_blocks', {}).keys() >= {'anchorTx', 'authorizationTx'}:
         lo, hi = bundle['_blocks']['authorizationTx'], bundle['_blocks']['anchorTx']
         net = record['subject']['network']
-        ok, detail = revocation_check(net, auth['issuer'], ah, record['subject'].get('chainId'), lo, hi,
-                                      published_revocation(root, net))
         _RUN['revocation'] = {'interval': [lo, hi], 'method': 'direct' if hi - lo <= DIRECT_SCAN_LIMIT else 'issuerHistory'}
+        ok, detail = revocation_check(net, auth['issuer'], ah, record['subject'].get('chainId'), lo, hi,
+                                      published_revocation(root, net), _RUN['revocation'])
         add(ok, 'No revocation by the issuer between authorization and anchor', detail)
 
     if 'anchorTx' in times:
