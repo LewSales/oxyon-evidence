@@ -1,0 +1,62 @@
+{
+  "record": {
+    "schema": "oxyon.evidence.record.v1",
+    "claim": {
+      "type": "xl1.producer.telemetry",
+      "statement": "Oxyon's Windows producer (2152e6aec996742fb6e52ae1aad87bd44f2ccc91) published this status snapshot, generated at 2026-11-14T04:19:17.716Z."
+    },
+    "subject": {
+      "kind": "xl1-producer",
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+      "address": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91"
+    },
+    "source": {
+      "url": "https://raw.githubusercontent.com/LewSales/xl1-status-data/6024841612e1026b90a3a7d98c3c2957ba0cb838/windows.json",
+      "repository": "https://github.com/LewSales/xl1-status-data",
+      "commit": "6024841612e1026b90a3a7d98c3c2957ba0cb838",
+      "path": "windows.json",
+      "publisher": "xl1-publisher (the producer's own public status feed)"
+    },
+    "content": {
+      "mediaType": "application/json",
+      "algorithm": "sha256",
+      "canonicalization": "none — the exact bytes served at source.url",
+      "sha256": "e901736d72c4406fd349b5233d6a646e36da72369b0ba88f7882fdaebb1fd88e",
+      "bytes": 233959
+    },
+    "observedAt": 1794629957716,
+    "issuedAt": 1794672252455,
+    "issuer": "4e881c8217945f356900eb5e9e66fcbb05da3829",
+    "anchoredBy": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+    "establishes": "That these exact bytes existed, unchanged, no later than the block that anchors this record, under the authorization it cites.",
+    "doesNotEstablish": "That the activity they describe happened as described, or was fair. A commitment proves integrity and timing, not truth.",
+    "version": 1
+  },
+  "batch": {
+    "schema": "oxyon.geoproof.anchor.batch.v1",
+    "proofHashes": [
+      "fc44e84c5080c8149878bf1332d385f50e65f29a6e6739555ba8c40156a2b717"
+    ],
+    "network": "xl1:sequence:4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "anchoredAt": 1794672252455
+  },
+  "receipt": {
+    "schema": "oxyon.evidence.receipt.v1",
+    "kind": "anchor",
+    "record": "fc44e84c5080c8149878bf1332d385f50e65f29a6e6739555ba8c40156a2b717",
+    "batch": "452377467b488ac51b1dfe74e76d2a1832cdf81a7818781c81e827ea4fc05c7e",
+    "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+    "network": "sequence",
+    "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+    "tx": "1544e0364930b7268514a262ab6ed033a1af2e0fb1c75928611a3ed1b79a6d0d",
+    "signer": "ee9d194be80f4bafcb9e9f10f765f3afa431a8bc",
+    "block": 769675,
+    "blockHash": "32c686aedcc2825f1e62d634eeabc80a0376e92093a2fdcc5bc48e8705a21722",
+    "blockTime": 1794672255684,
+    "blockProducer": "2152e6aec996742fb6e52ae1aad87bd44f2ccc91",
+    "inclusionNote": "Included in a block produced by 2152…cc91, a producer operated by Oxyon. Inclusion is not verification: the commitment is checked against signatures and hashes, not against who produced the block.",
+    "version": 1
+  }
+}

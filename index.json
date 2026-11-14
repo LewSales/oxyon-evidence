@@ -32,6 +32,21 @@
       "receipt": "2b5a172a168d14f04aaaa02a8257ef30fcd8181f5f3c346e8ba9a6c2f67f48a8",
       "path": "records/sequence/2026/10/18/20-20cd1369a0ea079400bbf1cd245dc5ef50496b3bf0f2f3fbad4288c8cb3d7ae7.json",
       "contentSha256": "f0e1d275816f5cbb5b29fdb68a64f35da3449f5ba8e854d810fcec63ba3f522c"
+    },
+    {
+      "network": "sequence",
+      "chainId": "4b43a753c8024c0e5000e8ac948ac0063ac624bc",
+      "record": "fc44e84c5080c8149878bf1332d385f50e65f29a6e6739555ba8c40156a2b717",
+      "batch": "452377467b488ac51b1dfe74e76d2a1832cdf81a7818781c81e827ea4fc05c7e",
+      "authorization": "dbafea3b4208d166d7922c2a1bf046de83e2c5457ea944cc47f40d41d146a038",
+      "claimType": "xl1.producer.telemetry",
+      "observedAt": 1794629957716,
+      "anchorTx": "1544e0364930b7268514a262ab6ed033a1af2e0fb1c75928611a3ed1b79a6d0d",
+      "anchorBlock": 769675,
+      "anchorBlockTime": 1794672255684,
+      "receipt": "bef942100cc4eadce6978368dc5a37639d9e37c1db2f6d2f4c90d96603663439",
+      "path": "records/sequence/2026/11/14/16-fc44e84c5080c8149878bf1332d385f50e65f29a6e6739555ba8c40156a2b717.json",
+      "contentSha256": "e901736d72c4406fd349b5233d6a646e36da72369b0ba88f7882fdaebb1fd88e"
     }
   ],
   "authorizations": [
