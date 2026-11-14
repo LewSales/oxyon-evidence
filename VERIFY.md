@@ -266,6 +266,24 @@ Scripts should check the stderr line, or that the file exists.
 
 A receipt describes one run. It is not evidence by itself: re-run the command, and the result that counts is yours.
 
+## 9c. The browser Evidence Explorer and this script
+
+The record pages at `oxyon.io/evidence/` run their own checks in your browser. They use the same outcome words and the same
+scope rules as the receipt, but they are a separate implementation, so their check counts differ (Record A: 18 browser
+checks; 13 script checks plus 3 statements). Where both check the same thing, they agree.
+
+| | Browser (Evidence Explorer) | This script |
+|---|---|---|
+| Signatures | **Checked**, with XYO's SDK (`@xyo-network/sdk-protocol` 7.4.2) bundled and served by oxyon.io. To avoid trusting that copy, run `verify/sigcheck.mjs` with the package from npm (step 6) | Not checked (`NOT_EVALUATED`) |
+| Elevated payloads re-hashed (step 6b) | No | Yes |
+| Finality | Block height at or below the finalized head **reported by XYO RPC**. A transaction whose window reaches above that head and that isn't yet in a block is *pending*, not failed | Same rule; a not-yet-final transaction is reported as failed |
+| Producer, chain canonicity | `INFERRED` (first block signer; XYO's view of the chain) | Producer `INFERRED` |
+| Statements (disclosures) | Shown apart, never counted | `STATEMENT` rows, never counted |
+| Outcome | `VERIFIED` only if every check passed and none is unchecked; an unreachable source, RPC or block CDN gives `INCONCLUSIVE` or `NOT_EVALUATED`, never `VERIFIED` | As in 9b |
+| Revocation scan | Up to 500 blocks after the authorization | Up to 5,000 blocks |
+
+Neither proves that the telemetry inside the bytes is true.
+
 ## 10. WinLEW records: two extra rules
 
 Records with a `winlew.*` claim type (see `tools/README.md` for what each one establishes) get
