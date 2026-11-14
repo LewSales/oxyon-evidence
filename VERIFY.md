@@ -305,7 +305,7 @@ browser does check signatures and has no exit code. This script keeps writing 0.
 Unchanged meaning: `scope.finality` (as reported by XYO RPC, `independentlyEstablished: false`), `producerAttribution` and
 `chainCanonicity` (`INFERRED`), statements (`STATEMENT`, never counted). A consumer that only understands 0.1 must
 check `receiptVersion` and must not read a 0.2 receipt's signature scope or exit code with 0.1 rules. Check counts
-differ from this script by design (Record A: browser 18, Python 13). The receipt is offered only after a run
+differ from this script by design (Record A: browser 19, Python 13). The receipt is offered only after a run
 that finished; one that could not start offers none.
 
 Since 2026-11-14, a 0.2 receipt also carries `procedure.manifest` (the build manifest that loaded with the page: the
@@ -334,7 +334,7 @@ the receipt: 0 consistent, 1 invalid or altered, 2 unreadable, 3 unsupported.
 ## 9c. The browser Evidence Explorer and this script
 
 The record pages at `oxyon.io/evidence/` run their own checks in your browser. They use the same outcome words and the same
-scope rules as the receipt, but they are a separate implementation, so their check counts differ (Record A: 18 browser
+scope rules as the receipt, but they are a separate implementation, so their check counts differ (Record A: 19 browser
 checks; 13 script checks plus 3 statements). Where both check the same thing, they agree.
 
 | | Browser (Evidence Explorer) | This script |
