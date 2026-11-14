@@ -40,6 +40,7 @@ export function plan(index, { exposed = [], now = Date.now() } = {}) {
     'Revocation is an Oxyon evidence convention, checked by both verifiers (a revocation bound witness from the issuer, between authorization and anchor). It is not an XL1 protocol feature; XL1 itself cannot invalidate an authorization.',
     'Whether an exposed key has been used by anyone else is not known from public data. The index lists only the records Oxyon published.',
     'No revoke command exists in tools/evidence.mjs; constructing a revocation is out of scope for this planner.',
+    "Revocations are read from the index, which is Oxyon's claim: a stale or edited index could omit one. Each record's verifier scans the chain for its own interval; this planner does not.",
   ]
   const steps = [
     'Owner decides: new identity and new delegate from a fresh phrase (recommended when the issuer is exposed), or a new delegate only.',
@@ -56,7 +57,7 @@ export function render(p) {
   const out = [p.banner, '', `Identities (issuers) in the index: ${p.identities.join(', ') || 'none'}`, `Stated exposed: ${p.exposedStated.join(', ') || 'none stated'}`, '']
   for (const r of p.authorizations) {
     out.push(`- ${r.network} authorization ${r.authorization.slice(0, 16)}…  issuer ${r.issuer.slice(0, 8)}…${r.issuerExposed ? ' (EXPOSED)' : ''} → delegate ${r.delegate.slice(0, 8)}…${r.delegateExposed ? ' (EXPOSED)' : ''}`,
-      `    valid ${r.validFrom} → ${r.validUntil} · ${r.revoked ? 'revoked' : r.active ? 'ACTIVE' : 'not active'} · records: ${r.records.length}`,
+      `    valid ${r.validFrom} → ${r.validUntil} · ${r.revoked ? 'revoked (per the index)' : r.active ? 'ACTIVE (no revocation listed in the index; confirm on chain)' : 'not active'} · records: ${r.records.length}`,
       `    risk: ${r.risk}`, `    revocation: ${r.revocation}`)
   }
   out.push('', 'Unknown or out of scope:', ...p.unknowns.map((u) => `  - ${u}`), '', 'Owner-operated steps (each is a RED decision; nothing here performs them):', ...p.steps.map((s, i) => `  ${i + 1}. ${s}`), '', p.banner)
