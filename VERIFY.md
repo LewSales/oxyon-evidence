@@ -184,8 +184,8 @@ The rows above them (block, finality, signed time) say where and whether it land
 python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json
 ```
 
-Every row should read `[ok]` (none `[pending]`), and the exit code should be 0. Rows marked
-"Disclosure" or "Oxyon's disclosure" are statements, not checks, even though they print as `[ok]`.
+Every check row should read `[ok]` (none `[pending]`), and the exit code should be 0. Rows marked
+`[statement]` ("Disclosure", "Oxyon's disclosure") are statements, not checks; before 2026-11-14 they printed as `[ok]`.
 **Exit 0 alone is not a verdict:** a run with `[pending]` rows also exits 0 (see §9).
 
 ## 8. Check that the verifier rejects bad evidence
@@ -228,6 +228,7 @@ Each row the verifier prints is one check, in one of four states:
 | Row | Meaning |
 |---|---|
 | `[ok]` | Checked, and it holds |
+| `[statement]` | A disclosure: who included a transaction, or Oxyon's note about it. Not a check, never counted, never changes the exit code (printed as `[ok]` before 2026-11-14) |
 | `[FAIL]` | Checked, and it does not hold. The evidence is wrong or has been altered |
 | `[pending]` | Not checkable yet, for example an anchor that has not been broadcast, or an intact transaction still awaiting the finalized head reported by XYO RPC (see below). Not a failure |
 | Oxyon's disclosure | A statement by Oxyon, not a check |
@@ -236,7 +237,7 @@ The exit code is a verdict on the evidence only when one was reached:
 
 | Exit | Meaning |
 |---|---|
-| `0` | No row failed (`[ok]` and `[pending]` only) |
+| `0` | No row failed (`[ok]`, `[statement]` and `[pending]` only) |
 | `1` | At least one row is `[FAIL]` |
 | `2` | `[INCOMPLETE]`: a file the evidence chain needs is missing, the record is outside a clone of this repository, or the evidence is malformed (not JSON, or an unexpected structure). Nothing was concluded; never VERIFIED. Before 2026-11-14, malformed input crashed with exit 1 |
 | `3` | `[UNAVAILABLE]`: GitHub, the RPC or the block CDN could not be read. **Nothing was concluded**; run it again. An unreachable source is never reported as a failed check |
@@ -264,7 +265,7 @@ python verify/verify_evidence.py <record> --receipt receipt.json
 | `procedure` | Which script ran: `verifierSha256` (authoritative: the exact bytes that ran) and the Python version. `gitCommit` is the local checkout's HEAD when git can read it, otherwise `UNKNOWN`. `verifierMatchesCommit` says whether this one file differs from that commit; it does not claim the rest of the checkout is clean |
 | `performedAt` | When this run finished (UTC, from the local clock) |
 | `outcome.status` | Decided by **checks only**, never by statements. `VERIFIED` only when **every** check passed and none was left `[pending]`. A `[pending]` check makes it `INCONCLUSIVE`, even though the exit code is 0. `FAILED` for exit 1, `INCONCLUSIVE` for exit 2, `NOT_EVALUATED` for exit 3 (nothing was concluded) |
-| `checks` | Every printed row, word for word, with a `kind`. A `check` is `VERIFIED`, `FAILED` or `NOT_EVALUATED`. A `statement` (the Disclosure and "Oxyon's disclosure" rows, printed as `[ok]`) is `STATEMENT`: it is kept but is not a check and is not counted. Rows are classified where the verifier records them, not by their text. `outcome.counts` gives checks and `statements` separately (Record A: 13 checks, 3 statements) |
+| `checks` | Every printed row, word for word, with a `kind`. A `check` is `VERIFIED`, `FAILED` or `NOT_EVALUATED`. A `statement` (the Disclosure and "Oxyon's disclosure" rows, printed as `[statement]`; `[ok]` before 2026-11-14) is `STATEMENT`: it is kept but is not a check and is not counted. Rows are classified where the verifier records them, not by their text. `outcome.counts` gives checks and `statements` separately (Record A: 13 checks, 3 statements) |
 | `scope.signatures` | Always `NOT_EVALUATED`: this script does not check secp256k1 signatures (see step 6) |
 | `scope.finality` | The rule used: block height ≤ the finalized head XYO's RPC reports. It is a trust in that RPC, not finality established independently. Each leg also gives `pending` (awaiting that head; added 2026-11-14, additive, so `receiptVersion` stays `0.1`) |
 | `scope.producerAttribution` | `INFERRED`: the block's first signer is taken as its producer |
@@ -283,6 +284,29 @@ Scripts should check the stderr line, or that the file exists.
 **Paths and privacy:** arguments are recorded exactly as given, so that the run can be reproduced. Absolute paths can therefore show local folder or user names. Run from the repository with relative paths, as in the examples above, before you share a receipt.
 
 A receipt describes one run. It is not evidence by itself: re-run the command, and the result that counts is yours.
+
+## 9b2. The browser receipt (receipt version 0.2)
+
+After a run, the record page at `oxyon.io/evidence/record/?h=<record>` offers **Download receipt**. It is the same
+schema, `oxyon.evidence.verification-receipt`, at **`receiptVersion` 0.2**, because version 0.1 cannot describe a browser
+run truthfully: in 0.1, `scope.signatures` is always `NOT_EVALUATED` and `outcome.exitCode` is an integer, while the
+browser does check signatures and has no exit code. This script keeps writing 0.1, unchanged.
+
+| Field (0.2) | Difference from 0.1 |
+|---|---|
+| `procedure.kind` | `browser` (new). `procedure.id` is `oxyon.xl1.evidence-verify.browser`. `procedure.files` gives the SHA-256 of each page file that makes up the procedure (verify.mjs, scope.mjs, data.mjs, receipt.mjs and the bundled XYO SDK), as re-fetched from the same origin when the receipt was made; `null` if a file could not be read |
+| `startedAt`, `performedAt` | When the run started and finished, from the reader's clock |
+| `outcome.exitCode` | Always `null`. `outcome.browserStatus` is the page's own status (`verified`, `failed`, `incomplete`, `unavailable`). `outcome.status` uses the same four words and rules as 0.1: `VERIFIED` only when every check ran and passed |
+| `checks[].layer` | The page layer (commitment, signatures, authorization, source, receipts; `disclosure` for statements) |
+| `scope.signatures.status` | Evaluated: `VERIFIED`, `FAILED`, `PARTIAL` (some signature checks not evaluated) or `NOT_EVALUATED`. Trust dependency: the SDK copy served by oxyon.io |
+| `scope.truthOfContent` | `NOT_ESTABLISHED`, always |
+| `integrity` | `signed: false`. The file is unsigned JSON made by the reader's browser: anyone can edit it, and it is not evidence |
+
+Unchanged meaning: `scope.finality` (as reported by XYO RPC, `independentlyEstablished: false`), `producerAttribution` and
+`chainCanonicity` (`INFERRED`), statements (`STATEMENT`, never counted). A consumer that only understands 0.1 must
+check `receiptVersion` and must not read a 0.2 receipt's signature scope or exit code with 0.1 rules. Check counts
+differ from this script by design (Record A: browser 18, Python 13). The receipt is offered only after a run
+that finished; one that could not start offers none.
 
 ## 9c. The browser Evidence Explorer and this script
 
