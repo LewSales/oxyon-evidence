@@ -56,6 +56,16 @@ node tools/evidence.mjs anchor --key-file prompt --authorization <hash> \n  --so
 
 Offline tests: `node --test tools/test_pinned_source.mjs`.
 
+## Authority transition planner (read-only)
+
+`node tools/authority-plan.mjs [--exposed <addr,addr>] [--json]` reads **only** `index.json`. It lists each identity, delegate and authorization, with validity, whether it is active, the records that cite it, the risk if a stated address is exposed, and who alone could revoke it.
+
+- It never reads a key file, never asks for or derives a phrase, never builds, signs or sends anything, and makes no network call.
+- Exposure is whatever the owner states with `--exposed`; the planner doesn't decide it.
+- Its output begins and ends with **PLAN — NOT AUTHORIZATION**.
+
+Tests: `node --test tools/test_authority_plan.mjs`.
+
 ## WinLEW claim types
 
 | Claim type | What the content is | What it establishes | What it does NOT establish |
