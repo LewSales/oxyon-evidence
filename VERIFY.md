@@ -230,7 +230,7 @@ The exit code is a verdict on the evidence only when one was reached:
 |---|---|
 | `0` | No row failed (`[ok]` and `[pending]` only) |
 | `1` | At least one row is `[FAIL]` |
-| `2` | `[INCOMPLETE]`: a file the evidence chain needs is missing. Nothing else was checked |
+| `2` | `[INCOMPLETE]`: a file the evidence chain needs is missing, the record is outside a clone of this repository, or the evidence is malformed (not JSON, or an unexpected structure). Nothing was concluded; never VERIFIED. Before 2026-11-14, malformed input crashed with exit 1 |
 | `3` | `[UNAVAILABLE]`: GitHub, the RPC or the block CDN could not be read. **Nothing was concluded**; run it again. An unreachable source is never reported as a failed check |
 
 **For scripts: read an explicit verdict, never exit 0 alone.** Exit 0 means only that no check failed. Use
@@ -331,6 +331,7 @@ There should be none.
 | `python verify/test_tx_integrity.py` | Edited transactions are rejected; off-chain payloads, unfamiliar schemas and storage metadata are accepted |
 | `python verify/test_unavailable.py` | An unreachable source gives exit 3 and `[UNAVAILABLE]`, never `[FAIL]` |
 | `python verify/test_pending.py` | Offline: an intact transaction awaiting the reported finalized head is `[pending]` (receipt `INCONCLUSIVE`); a finalized one passes; tampered blocks, a wrong signer, missing commitments and an expired window still fail; an unreachable source raises UNAVAILABLE. Also pins exit code and receipt status together (VERIFIED 0, FAILED 1, pending 0 + INCONCLUSIVE, UNAVAILABLE 3 + NOT_EVALUATED) and that `selftest.py` never accepts a pending genuine record |
+| `python verify/test_adversarial.py` | Offline, behind a dead proxy: truncated or non-JSON records, a missing batch, wrong types and a record outside a clone are `[INCOMPLETE]` (exit 2, receipt `INCONCLUSIVE`, no traceback, no `[ok]` row); the genuine record with no network is `[UNAVAILABLE]` (exit 3), never `[FAIL]` |
 | `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
