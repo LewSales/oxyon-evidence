@@ -1,4 +1,8 @@
-// Signature check with XYO's own published SDK (npm @xyo-network/sdk), not Oxyon code.
+// Signature check with XYO's own published SDK (npm @xyo-network/sdk-protocol), not Oxyon code.
+// Run it inside your clone of this repository after `npm i @xyo-network/sdk-protocol@7.4.2`.
+// Boundary: it checks the signatures of ONE transaction exactly as the RPC returns it. That this transaction is
+// the anchored one (its hash, chain, commitments, block) is checked by verify_evidence.py, not here; block
+// signatures are checked only by the browser verifier.
 import { BoundWitnessValidator } from '@xyo-network/sdk-protocol/boundwitness-validator'
 import '@xyo-network/sdk-protocol/account' // registers the secp256k1 verifier
 const [rpcUrl, txHash] = process.argv.slice(2)

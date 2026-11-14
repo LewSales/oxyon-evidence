@@ -505,7 +505,15 @@ def main():
 
     for ok, title, detail in rows:
         print(f"{'[pending]' if ok is None else '[ok]' if ok else '[FAIL]'} {title}: {detail}")
-    sys.exit(0 if all(ok is not False for ok, _, _ in rows) else 1)
+    sys.exit(exit_code(rows))
+
+
+def exit_code(rows):
+    """The CLI verdict exit code: 1 if any check failed, else 0. Exit 0 ALSO covers [pending] rows (for example a
+    transaction awaiting XYO RPC's reported finality), so exit 0 alone never means VERIFIED. A consumer that needs
+    the verdict reads the printed rows (no [pending]) or the receipt's outcome.status (--receipt). Exit 2 (incomplete)
+    and 3 (unavailable) are raised before any row is judged."""
+    return 0 if all(ok is not False for ok, _, _ in rows) else 1
 
 
 # ── Evidence receipt v0.1 (opt-in: --receipt <file>) ─────────────────────────────────────────

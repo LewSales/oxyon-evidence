@@ -37,7 +37,7 @@ for stream in (sys.stdout, sys.stderr):
     except (UnicodeEncodeError, LookupError):
         stream.reconfigure(encoding='utf-8')
 
-EXITS = {0: 'all checks passed', 1: 'a check failed', 2: 'incomplete', 3: 'UNAVAILABLE: a source could not be read (network), not a verdict'}
+EXITS = {0: 'no check failed ([pending] rows may remain; exit 0 alone is not VERIFIED)', 1: 'a check failed', 2: 'incomplete', 3: 'UNAVAILABLE: a source could not be read (network), not a verdict'}
 failed, unavailable = [], []
 for path, want_code, must, what in CASES:
     for attempt in (1, 2):  # a case that could not reach its sources is run once more
@@ -46,6 +46,8 @@ for path, want_code, must, what in CASES:
         if p.returncode != 3:
             break
     ok = p.returncode == want_code and must in p.stdout
+    if path == GENUINE and '[pending]' in p.stdout:
+        ok = False  # exit 0 also allows [pending]: the genuine record must verify outright, not just not fail
     if not ok:
         (unavailable if p.returncode == 3 else failed).append(what)
     print(f"{'PASS' if ok else 'FAIL'}  {what}: exit {p.returncode} (expected {want_code})" + ('' if ok else

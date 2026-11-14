@@ -118,8 +118,8 @@ Then check the ordering:
 
 ## 6. Signature validity (needs secp256k1)
 
-The Python standard library has no secp256k1. In an empty folder, use XYO's own published
-validator (XYO's code, not Oxyon's):
+The Python standard library has no secp256k1. Inside your clone of this repository (so that
+`verify/sigcheck.mjs` is there), install XYO's own published validator (XYO's code, not Oxyon's):
 
 ```
 npm i @xyo-network/sdk-protocol@7.4.2
@@ -128,7 +128,9 @@ node verify/sigcheck.mjs https://beta.api.chain.xyo.network/rpc 6987871cbeb54f24
 ```
 
 Expect `signature valid for 4e881c82…` and `signature valid for ee9d194b…`. Any secp256k1
-library works too: the signature covers `xyo_hash(tx, data=True)`.
+library works too: the signature covers `xyo_hash(tx, data=True)`. `sigcheck.mjs` checks only the
+transaction as the RPC returns it; that it is the anchored transaction is step 7's job. Block
+signatures are checked only by the browser verifier (§9c).
 
 For the whole transaction under XYO's current rules, run `verify/txcheck.mjs`. It checks:
 - the signatures;
@@ -174,8 +176,9 @@ The rows above them (block, finality, signed time) say where and whether it land
 python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json
 ```
 
-Every row should read `[ok]`, and the exit code should be 0. Rows marked "Oxyon's disclosure"
-are statements, not checks.
+Every row should read `[ok]` (none `[pending]`), and the exit code should be 0. Rows marked
+"Disclosure" or "Oxyon's disclosure" are statements, not checks, even though they print as `[ok]`.
+**Exit 0 alone is not a verdict:** a run with `[pending]` rows also exits 0 (see §9).
 
 ## 8. Check that the verifier rejects bad evidence
 
@@ -229,6 +232,11 @@ The exit code is a verdict on the evidence only when one was reached:
 | `1` | At least one row is `[FAIL]` |
 | `2` | `[INCOMPLETE]`: a file the evidence chain needs is missing. Nothing else was checked |
 | `3` | `[UNAVAILABLE]`: GitHub, the RPC or the block CDN could not be read. **Nothing was concluded**; run it again. An unreachable source is never reported as a failed check |
+
+**For scripts: read an explicit verdict, never exit 0 alone.** Exit 0 means only that no check failed. Use
+`--receipt <file>` and read `outcome.status` (`VERIFIED`, `FAILED`, `INCONCLUSIVE`, `NOT_EVALUATED`), or require that
+no row is `[pending]`. Treat exit 2 as INCONCLUSIVE and exit 3 as NOT_EVALUATED (run again later); neither is a failure
+of the evidence.
 
 **Awaiting finality is pending, not failed (since 2026-11-14).** An on-chain leg is `[pending]` when its transaction is intact (right chain, hash, signer and commitments) but is in a block above the finalized head reported by XYO RPC, or is in no block yet while its `nbf..exp` window still reaches above that head. Run it again later. It is `[FAIL]` for any integrity failure (including a bad block hash or clock, or a block outside `nbf..exp`) and when the window has passed with the transaction in none of its blocks. **Intentional exit-code change:** such a run used to exit `1` (`[FAIL]`); it now exits `0` with a `[pending]` row, and its receipt says `INCONCLUSIVE` (it used to say `FAILED`). Finality is still only as XYO RPC reports it.
 
@@ -322,7 +330,7 @@ There should be none.
 | `python verify/selftest.py` | The genuine record passes, and each broken copy in `verify/fixtures/` fails or is INCOMPLETE for the right reason. Uses the network |
 | `python verify/test_tx_integrity.py` | Edited transactions are rejected; off-chain payloads, unfamiliar schemas and storage metadata are accepted |
 | `python verify/test_unavailable.py` | An unreachable source gives exit 3 and `[UNAVAILABLE]`, never `[FAIL]` |
-| `python verify/test_pending.py` | Offline: an intact transaction awaiting the reported finalized head is `[pending]` (receipt `INCONCLUSIVE`); a finalized one passes; tampered blocks, a wrong signer, missing commitments and an expired window still fail; an unreachable source raises UNAVAILABLE |
+| `python verify/test_pending.py` | Offline: an intact transaction awaiting the reported finalized head is `[pending]` (receipt `INCONCLUSIVE`); a finalized one passes; tampered blocks, a wrong signer, missing commitments and an expired window still fail; an unreachable source raises UNAVAILABLE. Also pins exit code and receipt status together (VERIFIED 0, FAILED 1, pending 0 + INCONCLUSIVE, UNAVAILABLE 3 + NOT_EVALUATED) and that `selftest.py` never accepts a pending genuine record |
 | `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
