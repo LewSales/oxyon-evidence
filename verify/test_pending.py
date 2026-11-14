@@ -130,5 +130,40 @@ class ReceiptOutcome(unittest.TestCase):
         self.assertEqual(self.receipt([(True, 'a', ''), (False, 'b', '')], 1)['outcome']['status'], 'FAILED')
 
 
+class ExitCodeIsNotAVerdict(unittest.TestCase):
+    """Sprint 005: exit 0 covers both VERIFIED and pending. Every consumer must read an explicit verdict: the
+    rows (no [pending]) or the receipt's outcome.status. This matrix pins the CLI exit code and the receipt status
+    together for VERIFIED, FAILED, INCONCLUSIVE (pending) and UNAVAILABLE."""
+    def outcome(self, rows, code=None):
+        code = ve.exit_code(rows) if code is None else code
+        run = {'rows': rows, 'statements': [], 'legs': {}}
+        return code, ve.build_receipt(run, code, ['verify_evidence.py', 'x.json'], '2026-11-14T00:00:00Z', '0' * 64, '3', None)['outcome']['status']
+
+    def test_verified(self):
+        self.assertEqual(self.outcome([(True, 'a', ''), (True, 'b', '')]), (0, 'VERIFIED'))
+
+    def test_failed(self):
+        self.assertEqual(self.outcome([(True, 'a', ''), (False, 'b', '')]), (1, 'FAILED'))
+
+    def test_pending_is_exit_0_but_inconclusive(self):
+        code, status = self.outcome([(True, 'a', ''), (None, 'b', 'Pending: …')])
+        self.assertEqual(code, 0, 'established CLI behaviour: pending is not a failure')
+        self.assertEqual(status, 'INCONCLUSIVE', 'but it is never VERIFIED')
+
+    def test_unavailable_is_exit_3_not_evaluated(self):
+        self.assertEqual(self.outcome([], code=3), (3, 'NOT_EVALUATED'))
+
+    def test_exit_0_alone_does_not_identify_the_verdict(self):
+        verified = self.outcome([(True, 'a', '')])
+        pending = self.outcome([(None, 'a', '')])
+        self.assertEqual(verified[0], pending[0])
+        self.assertNotEqual(verified[1], pending[1])
+
+    def test_selftest_requires_the_genuine_record_to_verify_outright(self):
+        with open(os.path.join(HERE, 'selftest.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertIn("if path == GENUINE and '[pending]' in p.stdout:", src)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -87,6 +87,8 @@ claims it has. Independence comes from the fact that anyone can repeat the check
 python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json
 ```
 
+Every check row should read `[ok]`, with none `[pending]`. Exit 0 alone is not a verdict: pending rows also
+exit 0; add `--receipt receipt.json` and read `outcome.status` for a machine-readable one (VERIFY.md §9).
 Then check the signatures with XYO's validator (see VERIFY.md). The verifier contacts only
 GitHub and XYO's public endpoints, and re-checks every field of every receipt against the
 chain. If GitHub is unavailable, it uses the archived copy in `blobs/` and says so.
