@@ -15,7 +15,7 @@ bundle.json = {"authorization": {...}, "record": {...}, "batch": {...},
                "authorizationTx": {"network": "sequence", "hash": "..."}}   # optional until broadcast
 
 Exit codes: 0 no check failed ([pending] rows allowed, e.g. awaiting finality), 1 a check failed, 2 incomplete (a required file is
-missing), 3 unavailable (a source could not be read after retries; nothing was concluded).
+missing, or the evidence is malformed), 3 unavailable (a source could not be read after retries; nothing was concluded).
 
 NOT checked here: secp256k1 signatures (the standard library has no secp256k1). This
 script shows that the chain committed the hashes and that the producer's signed time
@@ -329,7 +329,9 @@ def load_repo_record(path):
     while root and not os.path.isdir(os.path.join(root, 'keys')):
         parent = os.path.dirname(root)
         if parent == root:
-            raise SystemExit('cannot find the repository root (no keys/ directory above the record)')
+            print('[INCOMPLETE] Cannot find the repository root (no keys/ directory above the record), so the '
+                  'authorization cannot be followed. Run it from a clone of oxyon-evidence. Nothing was concluded; this is not VERIFIED.')
+            sys.exit(2)
         root = parent
     net = doc['record']['subject']['network']
     auth_path = os.path.join(root, 'keys', net, 'authorizations', doc['record']['authorization'] + '.json')
@@ -746,6 +748,19 @@ def _take_receipt_arg():
     return path
 
 
+MALFORMED = (ValueError, KeyError, TypeError, IndexError, AttributeError)
+
+
+def _malformed(e):
+    """Evidence that cannot be read as expected is not a verdict either way: never VERIFIED, and not a failed
+    check (no check ran on it). It is INCOMPLETE (exit 2), like a missing file, with the reason on stdout and the
+    error type on stderr so that a verifier bug is still visible."""
+    print(f'[INCOMPLETE] The evidence could not be read as expected ({type(e).__name__}: {str(e)[:200]}): '
+          'malformed or unexpected structure. Nothing was concluded; this is not VERIFIED.')
+    print(f'evidence not readable: {type(e).__name__}: {e}', file=sys.stderr)
+    return 2
+
+
 if __name__ == '__main__':
     receipt_path = _take_receipt_arg()
     if receipt_path is None:
@@ -755,6 +770,8 @@ if __name__ == '__main__':
             # A network problem is not a verdict on the evidence: say so, and exit apart from 1 (fail).
             print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
             sys.exit(3)
+        except MALFORMED as e:
+            sys.exit(_malformed(e))
     else:
         code, note = 1, None
         try:
@@ -764,6 +781,8 @@ if __name__ == '__main__':
         except Unavailable as e:
             print(f'[UNAVAILABLE] {e}. Nothing was concluded about this evidence; run it again.')
             code, note = 3, str(e)
+        except MALFORMED as e:
+            code, note = _malformed(e), f'malformed or unexpected evidence ({type(e).__name__})'
         except BaseException as e:
             _write_receipt(receipt_path, 99, f'{type(e).__name__}')
             raise
