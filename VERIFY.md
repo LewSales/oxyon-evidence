@@ -7,6 +7,13 @@ You need nothing from Oxyon's servers, JavaScript or APIs. The only inputs are:
 
 Every step can be done by hand, or with the two short scripts in `verify/`.
 
+**Tools (tested from a clean clone, 2026-11-14):** git; Python 3 (3.13.5 tested; standard library only); curl and
+`sha256sum` (or any SHA-256 tool); for the signature steps, Node 22.16 or later with npm 11, run inside the clone.
+**What you still trust:** XYO's RPC and block CDN for chain data, finality (as reported) and which chain is canonical;
+GitHub for serving the pinned source bytes (their SHA-256 is checked); XYO's npm packages for secp256k1. The
+`verify_evidence.py` step runs Oxyon-written code: it is short, standard-library only and readable, and the rules it
+applies are written out below so that you can re-implement them instead.
+
 | Layer | Question | Steps |
 |---|---|---|
 | Cryptographic commitment | Did XL1 record these exact hashes, in which finalized block, at what signed time? | 4, 5 |
@@ -138,7 +145,8 @@ For the whole transaction under XYO's current rules, run `verify/txcheck.mjs`. I
 - fees and the nbf/exp window;
 - that each elevated payload hashes to what the signature covers.
 
-It needs Node 26, in an empty folder:
+Run it inside your clone of this repository (so that `verify/txcheck.mjs` is there). It worked with Node 22.16
+and npm 11 in a clean-clone test on 2026-11-14; it was written for Node 26:
 
 ```
 npm i @xyo-network/xl1-protocol@5.8.10 @xyo-network/sdk@8.1.1

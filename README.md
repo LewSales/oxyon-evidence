@@ -83,6 +83,9 @@ claims it has. Independence comes from the fact that anyone can repeat the check
 
 ## Verify it yourself
 
+You need git, Python 3 (standard library only) and, for signatures, Node 22.16 or later with npm. Run everything
+inside a clone of this repository. VERIFY.md lists the tested versions and what you still trust.
+
 ```
 python verify/verify_evidence.py records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd529bb6183fd834f1b3c0749a05.json
 ```
