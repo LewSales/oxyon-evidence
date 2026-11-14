@@ -28,10 +28,12 @@ Status: research and design (Sprint 010). Nothing here creates, uses or revokes 
 - **The only remedy is a new trust root:** a fresh identity, bound to Oxyon LLC through channels the exposed key does not control (T4), with the old identity declared **historical**. Verifiers and pages must then treat records by the old identity as "issued by a historical identity". They must not be treated as current Oxyon authority after the transition date.
 
 ### T3. Revocation limits (bounded scans are not proof of absence)
-- **Revocation is an Oxyon verifier convention**, a bound witness that both verifiers look for. **It is not an XL1 protocol rule:** XL1 does not invalidate anything, and other software won't honour it unless it implements the same rule.
-- **The scan is bounded:** the verifiers scan only the interval between the authorization and the anchor (Python up to 5,000 blocks, browser up to 500).
-  - A **completed** scan of the whole interval supports "no revocation before this anchor".
-  - A **longer** interval is reported as **not checked** (NOT_EVALUATED, so never VERIFIED), never as "unrevoked".
+- **Revocation is an Oxyon verifier convention.** **It is not an XL1 protocol rule:** XL1 does not invalidate anything, and other software won't honour it unless it implements the same rule.
+- **What counts (clarified 2026-11-14, Sprint 012):** only a transaction of its block whose sender and first signer are the issuer, on the same chain, committing an `oxyon.evidence.revocation.v1` record that revokes this authorization. Elevated payloads and unsigned `from` fields never count. This closes a denial of service in which anyone could carry an issuer-shaped bound witness into a block and make later records fail.
+- **The scan covers the interval** between the authorization and the anchor:
+  - **Short intervals** (Python up to 5,000 blocks, browser up to 500): every block is read.
+  - **Longer intervals:** only the blocks where XYO RPC's balance history says the issuer sent a transaction. This relies on that history being complete, which is disclosed in the check and the receipt.
+  - The check concludes only when it completes. Missing history, short coverage, malformed entries, unreadable blocks, an unreadable revocation target, or a history that disagrees with its blocks give **not checked** (NOT_EVALUATED, so never VERIFIED), never "unrevoked".
 - **The index's revocation list is Oxyon's claim:** a stale or edited index could omit one. Trust comes from the chain scan, not the list.
 - **Open:** a revocation outside the interval (before the authorization, or after the anchor) is not relevant to that record by design. Ambiguity remains when two revocations conflict (for example under T2). It should be resolved by the trust-root transition, not by a verifier heuristic.
 

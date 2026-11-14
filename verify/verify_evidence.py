@@ -225,6 +225,128 @@ def tx_on_chain(net, tx_hash):
     }
 
 
+REVOCATION_SCHEMA = 'oxyon.evidence.revocation.v1'
+DIRECT_SCAN_LIMIT = 5000
+REVOCATION_DEFINITION = ('a revocation counts only as a transaction of the block (listed in the block\'s own payload_hashes, '
+                         'so validated by the chain) whose sender and first signer are the issuer, on the same chain, binding an '
+                         'oxyon.evidence.revocation.v1 record whose revokes field is this authorization\'s hash. Its signature '
+                         'is accepted as the chain validated it; this script does not check secp256k1 signatures')
+
+
+def revocations_in_block(bw, ps, issuer, auth_hash, chain_id, lookup=None):
+    """(revoked, unreadable, issuer_txs) for one block under the clarified definition (Sprint 012). A bound witness that
+    is not a transaction of the block (for example an elevated payload), or whose sender or first signer is not the
+    issuer, never counts. Oxyon commits records by hash, so a revocation record is read from the block's payloads or,
+    failing that, from `lookup(hash)` (the published copy, accepted only if it re-hashes to the committed hash). A
+    qualifying transaction whose record cannot be read is unreadable: its target is unknown."""
+    top = set(bw.get('payload_hashes') or [])
+    by_hash = {xyo_hash(p): p for p in ps if isinstance(p, dict)}
+    revoked, unreadable = False, []
+    issuer_txs = sum(1 for p in ps if isinstance(p, dict) and p.get('schema') == 'network.xyo.boundwitness'
+                     and xyo_hash(p) in top and p.get('from') == issuer and (p.get('addresses') or [None])[0] == issuer)
+    for p in ps:
+        if not isinstance(p, dict) or p.get('schema') != 'network.xyo.boundwitness':
+            continue
+        schemas = p.get('payload_schemas') or []
+        if REVOCATION_SCHEMA not in schemas:
+            continue
+        h = xyo_hash(p)
+        signers = p.get('addresses') or []
+        if h not in top or p.get('from') != issuer or not signers or signers[0] != issuer or p.get('chain') != chain_id:
+            continue
+        hashes = p.get('payload_hashes') or []
+        for i, s in enumerate(schemas):
+            if s != REVOCATION_SCHEMA:
+                continue
+            want = hashes[i] if i < len(hashes) else None
+            rec = by_hash.get(want) if want else None
+            if rec is None and want and lookup:
+                rec = lookup(want)
+                rec = rec if isinstance(rec, dict) and xyo_hash(rec) == want else None
+            if rec is None:
+                unreadable.append(h)
+            elif rec.get('revokes') == auth_hash:
+                revoked = True
+    return revoked, unreadable, issuer_txs
+
+
+class HistoryIncomplete(Exception):
+    """XYO's balance history cannot be relied on for this interval: the revocation check is not evaluated."""
+
+
+def issuer_outgoing_blocks(net, issuer, lo, hi):
+    """Blocks in lo..hi where the issuer SENT a transaction, from XYO RPC's balance history. Every transaction pays its fee
+    as a transfer from its sender, so every issuer transaction is listed, as complete as XYO's history. Raises
+    HistoryIncomplete unless the reported range covers the whole interval and every entry is well formed."""
+    try:
+        r = rpc(net, 'accountBalanceViewer_qualifiedAccountBalanceHistories', [[issuer], {}])
+    except (Unavailable, RuntimeError) as e:
+        raise HistoryIncomplete(f'balance history unavailable ({str(e)[:80]})')
+    if not (isinstance(r, list) and len(r) == 2 and isinstance(r[0], dict) and isinstance(r[1], dict)):
+        raise HistoryIncomplete('balance history malformed')
+    span = r[1].get('range')
+    if not (isinstance(span, list) and len(span) == 2 and all(isinstance(x, int) for x in span) and span[0] <= lo and span[1] >= hi):
+        raise HistoryIncomplete(f'balance history covers {span}, not #{lo}–#{hi}')
+    entries = r[0].get(issuer)
+    if not isinstance(entries, list):
+        raise HistoryIncomplete('balance history has no entry list for the issuer')
+    out = set()
+    for e in entries:
+        if not (isinstance(e, list) and len(e) == 3 and isinstance(e[0], dict) and isinstance(e[0].get('block'), int) and isinstance(e[2], dict)):
+            raise HistoryIncomplete('balance history entry malformed')
+        if e[2].get('from') == issuer and lo <= e[0]['block'] <= hi:
+            out.add(e[0]['block'])
+    return sorted(out), span
+
+
+def published_revocation(root, net):
+    """Reads keys/<net>/revocations/<hash>.json from the evidence repository, if present (re-hashed by the caller)."""
+    import os
+    def lookup(h):
+        try:
+            with open(os.path.join(root, 'keys', net, 'revocations', f'{h}.json'), encoding='utf-8') as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+    return lookup if root else None
+
+
+def revocation_check(net, issuer, auth_hash, chain_id, lo, hi, lookup=None):
+    """(ok, detail): True only after a complete check found no qualifying revocation; False when one revokes this
+    authorization; None when the check could not be completed (never a pass)."""
+    try:
+        direct = hi - lo <= DIRECT_SCAN_LIMIT
+        if direct:
+            blocks, how, span = list(range(lo, hi + 1)), f'scanned every block #{lo}–#{hi} on chain', None
+        else:
+            blocks, span = issuer_outgoing_blocks(net, issuer, lo, hi)
+            how = (f"interval of {hi - lo:,} blocks: checked the issuer's {len(blocks)} outgoing-transaction block(s) in "
+                   f"#{lo}–#{hi}, as listed by XYO RPC's balance history (complete as XYO reports it, #{span[0]}–#{span[1]})")
+        found, unreadable = [], []
+        for n in blocks:
+            try:
+                bw, ps = json.loads(fetch(f"{NETS[net][1]}/block/number/{n}.json"))
+            except urllib.error.HTTPError:
+                return None, f'block #{n} could not be read, so the revocation check is incomplete; not evaluated'
+            rev, unk, txs = revocations_in_block(bw, ps, issuer, auth_hash, chain_id, lookup)
+            if not direct and not txs:
+                return None, (f'the balance history lists an issuer transfer in block #{n}, but that block has no transaction '
+                              'sent and signed by the issuer, so the history is inconsistent; not evaluated')
+            if rev:
+                found.append(n)
+            unreadable += [(n, u) for u in unk]
+        if found:
+            return False, f'{how}; revocation of this authorization in #{found}'
+        if unreadable:
+            return None, (f'{how}; an issuer revocation transaction in #{unreadable[0][0]} commits a record that is neither in the '
+                          'block nor published in keys/<network>/revocations/, so its target cannot be read; not evaluated')
+        return True, f'{how}; {REVOCATION_DEFINITION}'
+    except HistoryIncomplete as e:
+        return None, f'interval #{lo}–#{hi} is longer than {DIRECT_SCAN_LIMIT:,} blocks and {e}; not evaluated'
+    except Unavailable as e:
+        return None, f'revocation check incomplete ({str(e)[:80]}); not evaluated'
+
+
 def leg_verdict(c, signer, commits):
     """One on-chain leg: (True, None) final and intact; (False, None) an actual failure; (None, why) pending.
 
@@ -476,17 +598,11 @@ def main():
 
     if bundle.get('_blocks', {}).keys() >= {'anchorTx', 'authorizationTx'}:
         lo, hi = bundle['_blocks']['authorizationTx'], bundle['_blocks']['anchorTx']
-        if hi - lo <= 5000:
-            found = []
-            net = record['subject']['network']
-            for n in range(lo, hi + 1):  # any revocation by the issuer committed before the anchor?
-                bw, ps = json.loads(fetch(f"{NETS[net][1]}/block/number/{n}.json"))
-                for p in ps:
-                    if p.get('schema') == 'network.xyo.boundwitness' and p.get('from') == auth['issuer'] and 'oxyon.evidence.revocation.v1' in p.get('payload_schemas', []):
-                        found.append(n)
-            add(not found, 'No revocation by the issuer between authorization and anchor', f'scanned blocks #{lo}–#{hi} on chain' + (f'; revocation in #{found}' if found else ''))
-        else:
-            add(None, 'Revocation scan', f'range #{lo}–#{hi} too large for this script; see index.json (Oxyon\'s claim)')
+        net = record['subject']['network']
+        ok, detail = revocation_check(net, auth['issuer'], ah, record['subject'].get('chainId'), lo, hi,
+                                      published_revocation(root, net))
+        _RUN['revocation'] = {'interval': [lo, hi], 'method': 'direct' if hi - lo <= DIRECT_SCAN_LIMIT else 'issuerHistory'}
+        add(ok, 'No revocation by the issuer between authorization and anchor', detail)
 
     if 'anchorTx' in times:
         t = times['anchorTx']
@@ -650,6 +766,12 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
             'chainCanonicity': {'status': 'INFERRED',
                                 'basis': 'blocks are read from XYO\'s RPC and block CDN; their hashes are recomputed here, '
                                          'but which chain is canonical is as served by those endpoints'},
+            **({'revocation': {**run['revocation'], 'definition': REVOCATION_DEFINITION,
+                               'trustDependency': ('none beyond the block CDN: every block in the interval was read'
+                                                   if run['revocation']['method'] == 'direct' else
+                                                   'XYO RPC balance history (accountBalanceViewer_qualifiedAccountBalanceHistories) '
+                                                   'is relied on to list every block in which the issuer sent a transaction')}}
+               if run.get('revocation') else {}),
         },
         'evidence': ev,
         'chain': {k: {'network': v['network'], 'tx': v['tx'], 'found': v['found'], 'block': v['block'],

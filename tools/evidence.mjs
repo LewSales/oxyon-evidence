@@ -228,7 +228,7 @@ if (cmd === 'authorize') {
     validFrom: from, validUntil: until,
     statement: `Oxyon, identified on XL1 by address ${addr(issuer.address)}, authorises address ${delegate} to anchor Oxyon evidence records of type ${claims.join(', ')} on ${NETS[net].name} (chain ${NETS[net].chainId}) from ${iso(from)} until ${iso(until)}, unless revoked earlier.`,
     doesNotAuthorise: 'Anything else: speaking for Oxyon on other matters, moving Oxyon funds, issuing further authorisations, or anchoring on any other network.',
-    revocation: "An oxyon.evidence.revocation.v1 record whose revokes field is this record's hash, signed by the issuer and committed on the same network. It takes effect at its own block and does not invalidate records anchored before it.",
+    revocation: "An oxyon.evidence.revocation.v1 record whose revokes field is this record's hash, committed on the same network by a transaction the issuer sends and signs (not carried in by another party's transaction), and published under keys/<network>/revocations/. It takes effect at its own block and does not invalidate records anchored before it.",
     version: 1,
   }
   const hash = xyoHash(authorization)

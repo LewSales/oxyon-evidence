@@ -37,7 +37,7 @@ export function plan(index, { exposed = [], now = Date.now() } = {}) {
   })
   const identities = [...new Set(auths.map((a) => a.issuer))]
   const unknowns = [
-    'Revocation is an Oxyon evidence convention, checked by both verifiers (a revocation bound witness from the issuer, between authorization and anchor). It is not an XL1 protocol feature; XL1 itself cannot invalidate an authorization.',
+    'Revocation is an Oxyon evidence convention, checked by both verifiers (a transaction sent and signed by the issuer, between authorization and anchor, committing a revocation of that authorization). It is not an XL1 protocol feature; XL1 itself cannot invalidate an authorization.',
     'Whether an exposed key has been used by anyone else is not known from public data. The index lists only the records Oxyon published.',
     'No revoke command exists in tools/evidence.mjs; constructing a revocation is out of scope for this planner.',
     "Revocations are read from the index, which is Oxyon's claim: a stale or edited index could omit one. Each record's verifier scans the chain for its own interval; this planner does not.",
