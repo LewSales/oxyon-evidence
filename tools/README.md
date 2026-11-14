@@ -37,6 +37,25 @@ node tools/evidence.mjs anchor    --key-file C:\keys\oxyon-anchor-winlew.key --a
 - **Who signs `authorize`:** the issuer must be Oxyon's identity key (`4e88…3829`). Only it can
   make the authorization mean "Oxyon authorises".
 
+## Pinned GitHub sources (Record A's shape)
+
+A record can point at a public file pinned at a commit instead of an archived copy:
+
+```
+node tools/evidence.mjs anchor --key-file prompt --authorization <hash> \n  --source-repo LewSales/xl1-status-data --source-commit <40-character commit> --source-path windows.json \n  [--expect-sha256 <sha256>] [--expect-bytes <n>] [--content <local copy to cross-check>] \n  --claim-type xl1.producer.telemetry --statement "…" [--subject <json>] [--observed-at <ms>] [--send]
+```
+
+- **The commit must be a full 40-character SHA.** Branch names, tags and short SHAs are refused, because they can move.
+- **Before anything is built**, the bytes are read from `raw.githubusercontent.com/<repo>/<commit>/<path>` and checked: they must be JSON, and must match `--expect-sha256`, `--expect-bytes` and a local `--content`, when given.
+- **The record gets** `source: { url, repository, commit, path, publisher }`, exactly as Record A has it. With `--send`, the bytes are also archived under `blobs/sha256/`, which is the verifiers' fallback copy.
+- **Without the `--source-*` flags**, the archived-source behaviour is unchanged.
+
+## Preview without a key
+
+`anchor --preview` builds and prints the record and batch, using the same arguments without `--key-file`. No key is read, nothing is signed, broadcast or written, and no chain call is made. `issuedAt`, and so both hashes, change when the record is really signed. `--preview` cannot be combined with `--send`.
+
+Offline tests: `node --test tools/test_pinned_source.mjs`.
+
 ## WinLEW claim types
 
 | Claim type | What the content is | What it establishes | What it does NOT establish |

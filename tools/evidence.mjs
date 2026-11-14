@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { SourceError, fetchPinned, parsePinned, pinnedFields } from './pinned-source.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const NETS = {
@@ -246,8 +247,11 @@ if (cmd === 'authorize') {
 }
 
 if (cmd === 'anchor') {
-  const sdk = await loadSdk()
-  const key = await accountFrom(sdk, need('key-file'))
+  // --preview builds and prints the record without a key, the SDK, signing or any chain call.
+  const preview = flag('preview')
+  if (preview && flag('send')) die('--preview and --send cannot be combined')
+  const sdk = preview ? null : await loadSdk()
+  const key = preview ? null : await accountFrom(sdk, need('key-file'))
   const authHash = need('authorization')
   const authFile = Object.keys(NETS).map((n) => join(ROOT, 'keys', n, 'authorizations', `${authHash}.json`)).find(existsSync)
   if (!authFile) die(`no authorization ${authHash} in keys/; run authorize --send first`)
@@ -255,9 +259,22 @@ if (cmd === 'anchor') {
   const net = authorization.scope.network.id
   const claimType = need('claim-type')
   if (!authorization.scope.claims.includes(claimType)) die(`authorization ${authHash.slice(0, 12)}… does not cover ${claimType}`)
-  if (addr(key.address) !== authorization.delegate) die(`the key file is ${addr(key.address)}, but the authorization names ${authorization.delegate}`)
-  const bytes = readFileSync(need('content'))
-  JSON.parse(bytes.toString('utf8')) // content must be JSON
+  if (key && addr(key.address) !== authorization.delegate) die(`the key file is ${addr(key.address)}, but the authorization names ${authorization.delegate}`)
+  // Source: pinned at a GitHub commit (--source-repo/--source-commit/--source-path, Record A's shape),
+  // or an archived copy that is the record's only source (--content).
+  const pinned = opt('source-commit') !== undefined || opt('source-repo') !== undefined || opt('source-path') !== undefined
+  let bytes, pinnedSpec, fetched
+  if (pinned) {
+    try {
+      pinnedSpec = parsePinned({ repo: need('source-repo'), commit: need('source-commit'), path: need('source-path') })
+      fetched = await fetchPinned(pinnedSpec, { expectSha256: opt('expect-sha256'), expectBytes: opt('expect-bytes'),
+        localBytes: opt('content') ? readFileSync(opt('content')) : undefined })
+    } catch (e) { if (e instanceof SourceError) die(e.message); throw e }
+    bytes = fetched.bytes
+  } else {
+    bytes = readFileSync(need('content'))
+    JSON.parse(bytes.toString('utf8')) // content must be JSON
+  }
   const sha = createHash('sha256').update(bytes).digest('hex')
   const now = Date.now()
   if (now < authorization.validFrom || now >= authorization.validUntil) die('now is outside the authorization window')
@@ -265,8 +282,10 @@ if (cmd === 'anchor') {
     schema: 'oxyon.evidence.record.v1',
     claim: { type: claimType, statement: need('statement') },
     subject: { kind: claimType.split('.').slice(0, 2).join('-'), network: net, chainId: NETS[net].chainId, ...(opt('subject') ? JSON.parse(opt('subject')) : {}) },
-    source: { kind: 'archived', path: `blobs/sha256/${sha.slice(0, 2)}/${sha}.json`, publisher: 'the issuer; the archived copy is the only source' },
-    content: { mediaType: 'application/json', algorithm: 'sha256', canonicalization: 'none — the exact bytes of the archived copy', sha256: sha, bytes: bytes.length },
+    ...(pinned ? pinnedFields(pinnedSpec, fetched, opt('source-publisher')) : {
+      source: { kind: 'archived', path: `blobs/sha256/${sha.slice(0, 2)}/${sha}.json`, publisher: 'the issuer; the archived copy is the only source' },
+      content: { mediaType: 'application/json', algorithm: 'sha256', canonicalization: 'none — the exact bytes of the archived copy', sha256: sha, bytes: bytes.length },
+    }),
     observedAt: Number(opt('observed-at', now)), issuedAt: now,
     issuer: authorization.issuer, anchoredBy: authorization.delegate, authorization: authHash,
     establishes: 'That these exact bytes existed, unchanged, no later than the block that anchors this record, under the authorization it cites.',
@@ -277,13 +296,21 @@ if (cmd === 'anchor') {
   const batch = { schema: 'oxyon.geoproof.anchor.batch.v1', proofHashes: [recordHash], network: `xl1:${net}:${NETS[net].chainId}`, anchoredAt: now }
   const batchHash = xyoHash(batch)
   console.log(`record ${recordHash} · batch ${batchHash}`)
+  if (preview) {
+    console.log(JSON.stringify({ record, batch }, null, 2))
+    console.log(`  preview: content sha256 ${sha} (${bytes.length} bytes)${pinned ? ` read from ${pinnedSpec.url}` : ''}`)
+    console.log('  preview: no key read, nothing signed, broadcast or written. issuedAt (and so both hashes) change when it is signed.')
+    process.exit(0)
+  }
   const tx = await buildTx(sdk, key, net, batchHash, [record, batch])
   await showCost(net, tx)
   if (!flag('send')) { console.log('  dry run: nothing broadcast, nothing written (add --send)'); process.exit(0) }
   const where = await sendAndLocate(net, tx)
   // The archive holds the exact bytes that were hashed, never a reformatted copy.
-  mkdirSync(dirname(join(ROOT, record.source.path)), { recursive: true })
-  writeFileSync(join(ROOT, record.source.path), bytes)
+  // Always archived by SHA-256 (a pinned record's fallback copy; an archived record's only source).
+  const blobPath = `blobs/sha256/${sha.slice(0, 2)}/${sha}.json`
+  mkdirSync(dirname(join(ROOT, blobPath)), { recursive: true })
+  writeFileSync(join(ROOT, blobPath), bytes)
   const receipt = receiptFor('anchor', { record: recordHash, batch: batchHash, authorization: authHash }, net, tx, where)
   const d = new Date(where.blockTime ?? now)
   const rel = `records/${net}/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCHours()).padStart(2, '0')}-${recordHash}.json`
