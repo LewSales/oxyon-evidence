@@ -377,6 +377,190 @@ def revocation_check(net, issuer, auth_hash, chain_id, lo, hi, lookup=None, fact
         return None, f'revocation check incomplete ({str(e)[:80]}); not evaluated'
 
 
+# ── WinLEW airdrop records (snapshot on XL1, payouts on Solana) ───────────────
+AIRDROP_SNAPSHOT, AIRDROP_DISTRIBUTION = 'winlew.airdrop.snapshot.v1', 'winlew.airdrop.distribution.v1'
+SOLANA_RPC = 'https://api.mainnet-beta.solana.com'
+SOLSCAN_TX = 'https://solscan.io/tx/'
+
+
+def _is_sol_address(s):
+    import re
+    return isinstance(s, str) and re.fullmatch(r'[1-9A-HJ-NP-Za-km-z]{32,44}', s) is not None
+
+
+def _is_raw(s):
+    import re
+    return isinstance(s, str) and re.fullmatch(r'0|[1-9][0-9]*', s) is not None
+
+
+def airdrop_snapshot_problems(c):
+    """Structural problems in a winlew.airdrop.snapshot.v1 artifact (an empty list means well formed)."""
+    p = []
+    if not isinstance(c, dict) or c.get('schema') != AIRDROP_SNAPSHOT:
+        return ['not a winlew.airdrop.snapshot.v1 artifact']
+    tok = c.get('token') or {}
+    if not _is_sol_address(tok.get('mint')) or not isinstance(tok.get('decimals'), int):
+        p.append('token mint or decimals missing')
+    rs = c.get('recipients')
+    if not isinstance(rs, list) or not rs:
+        return p + ['no recipients']
+    wallets = [r.get('wallet') if isinstance(r, dict) else None for r in rs]
+    if not all(_is_sol_address(w) for w in wallets):
+        p.append('a recipient is not a Solana address')
+    if len(set(wallets)) != len(wallets):
+        p.append('a wallet is listed twice')
+    if wallets != sorted(wallets, key=lambda w: w or ''):
+        p.append('recipients are not in wallet order')
+    if not all(isinstance(r, dict) and _is_raw(r.get('amountRaw')) and r['amountRaw'] != '0' for r in rs):
+        p.append('an amount is not a positive integer in base units')
+    else:
+        total = sum(int(r['amountRaw']) for r in rs)
+        t = c.get('totals') or {}
+        if t.get('recipients') != len(rs) or t.get('amountRaw') != str(total):
+            p.append(f'totals do not add up ({len(rs)} recipients, {total} base units)')
+    ex = {e.get('wallet') for e in c.get('excluded') or [] if isinstance(e, dict)}
+    if ex & set(wallets) or (c.get('treasury') and c['treasury'] in wallets):
+        p.append('an excluded or treasury address is also a recipient')
+    return p
+
+
+def find_record_bundle(root, record_hash):
+    """The published bundle of an Oxyon record, located through index.json and re-hashed (None if absent or wrong)."""
+    import os
+    try:
+        def read(rel, mode='rb'):
+            with open(os.path.join(root, rel), mode) as f:
+                return f.read()
+        idx = json.loads(read('index.json'))
+        entry = next(e for e in idx.get('records', []) if e.get('record') == record_hash)
+        b = json.loads(read(entry['path']))
+        sha = b['record']['content']['sha256']
+        raw = read(os.path.join('blobs', 'sha256', sha[:2], sha + '.json'))
+    except (OSError, ValueError, StopIteration, KeyError, TypeError):
+        return None
+    if xyo_hash(b['record']) != record_hash or hashlib.sha256(raw).hexdigest() != b['record']['content']['sha256']:
+        return None
+    return b, raw
+
+
+def solana_rpc(url, method, params):
+    out = json.loads(fetch(url, {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}))
+    if 'error' in out:
+        raise RuntimeError(f"{method}: {str(out['error'])[:120]}")
+    return out.get('result')
+
+
+def solana_mint_deltas(tx, mint):
+    """{owner: post - pre} for one mint's token balances in a parsed Solana transaction, and the decimals seen."""
+    meta = tx.get('meta') or {}
+    bal, decimals = {}, set()
+    for sign, key in ((-1, 'preTokenBalances'), (1, 'postTokenBalances')):
+        for b in meta.get(key) or []:
+            if b.get('mint') != mint:
+                continue
+            amt = (b.get('uiTokenAmount') or {})
+            decimals.add(amt.get('decimals'))
+            bal[b.get('owner')] = bal.get(b.get('owner'), 0) + sign * int(amt.get('amount', '0'))
+    return {k: v for k, v in bal.items() if v}, decimals
+
+
+def solana_payout_problems(tx, expected, mint, decimals, treasury):
+    """Why one Solana transaction does not pay exactly `expected` ({wallet: raw}) of `mint` from `treasury`."""
+    if not tx:
+        return ['not found on Solana at finalized commitment']
+    if (tx.get('meta') or {}).get('err') is not None:
+        return ['the transaction failed on Solana']
+    deltas, seen = solana_mint_deltas(tx, mint)
+    p = []
+    if seen - {decimals}:
+        p.append(f'token decimals {sorted(seen, key=str)} differ from the snapshot ({decimals})')
+    for w, amt in expected.items():
+        if deltas.get(w, 0) != amt:
+            p.append(f'{w[:6]}… received {deltas.get(w, 0)}, expected {amt}')
+    total = sum(expected.values())
+    senders = {o: -d for o, d in deltas.items() if d < 0}
+    if treasury and senders.get(treasury) != total:
+        p.append(f'the treasury sent {senders.get(treasury, 0)}, expected {total}')
+    elif not treasury and (len(senders) != 1 or sum(senders.values()) != total):
+        p.append('not a single sender of exactly the listed total')
+    extra = [o for o, d in deltas.items() if d > 0 and o not in expected]
+    if extra:
+        p.append(f'{len(extra)} other wallet(s) also received this token in the same transaction')
+    return p
+
+
+def check_airdrop_distribution(c, root, solana_url, add, state):
+    """The distribution pays exactly the anchored snapshot, every payout is on Solana as listed, and the snapshot was
+    committed on XL1 before the first payout."""
+    if not isinstance(c, dict) or c.get('schema') != AIRDROP_DISTRIBUTION:
+        add(False, 'Airdrop distribution is well formed', 'not a winlew.airdrop.distribution.v1 artifact')
+        return
+    ref = (c.get('snapshot') or {}).get('record')
+    found = find_record_bundle(root, ref) if isinstance(ref, str) else None
+    if not found:
+        add(None, 'The snapshot it pays is published', f'snapshot record {str(ref)[:16]}… is not in this repository (or does not re-hash); not evaluated')
+        return
+    sb, sraw = found
+    try:
+        snap = json.loads(sraw.decode('utf-8'))
+    except ValueError:
+        snap = None
+    probs = airdrop_snapshot_problems(snap)
+    add(not probs and sb['record']['claim']['type'] == 'winlew.airdrop.snapshot', 'The snapshot it pays is published and well formed',
+        f"snapshot record {ref[:16]}…, {len(snap['recipients'])} recipients" if not probs else '; '.join(probs[:3]))
+    if probs:
+        return
+    want = {r['wallet']: r['amountRaw'] for r in snap['recipients']}
+    ts = c.get('transfers') if isinstance(c.get('transfers'), list) else []
+    got = {}
+    for t in ts:
+        if isinstance(t, dict) and t.get('wallet') not in got:
+            got[t.get('wallet')] = t.get('amountRaw')
+    exact = (len(ts) == len(want) == len(got) and got == want and c.get('token') == snap['token'] and c.get('treasury') == snap.get('treasury')
+             and all(isinstance(t.get('signature'), str) for t in ts))
+    add(exact, 'Payouts match the snapshot exactly',
+        f'{len(ts)} transfers to {len(want)} snapshot recipients, same amounts, token and treasury' if exact
+        else 'the transfer list differs from the snapshot (missing, extra, duplicated or different amounts, token or treasury)')
+    if not exact:
+        return
+    by_sig = {}
+    for t in ts:
+        by_sig.setdefault(t['signature'], {})[t['wallet']] = int(t['amountRaw'])
+    mint, dec, treasury = snap['token']['mint'], snap['token']['decimals'], snap.get('treasury')
+    bad, times, unavailable = [], [], None
+    for i, (sig, expected) in enumerate(sorted(by_sig.items())):
+        try:
+            tx = solana_rpc(solana_url, 'getTransaction', [sig, {'encoding': 'jsonParsed', 'commitment': 'finalized', 'maxSupportedTransactionVersion': 0}])
+        except (Unavailable, RuntimeError, ValueError) as e:
+            unavailable = str(e)[:100]
+            break
+        pr = solana_payout_problems(tx, expected, mint, dec, treasury)
+        if pr:
+            bad.append((sig, pr))
+        elif tx.get('blockTime') is not None:
+            times.append(tx['blockTime'] * 1000)
+        if i % 10 == 9:
+            import time
+            time.sleep(0.5)  # public RPC rate limits
+    if unavailable:
+        add(None, 'Every payout is on Solana as listed', f'Solana RPC could not be read ({unavailable}); not evaluated')
+        return
+    add(not bad, 'Every payout is on Solana as listed',
+        f'{len(by_sig)} transaction(s), finalized as {solana_url} reports, each moving exactly the listed amounts of {mint[:6]}… from the treasury'
+        if not bad else f"{len(bad)} transaction(s) differ, e.g. {bad[0][0][:12]}…: {'; '.join(bad[0][1][:2])}")
+    state('Check any payout yourself (a statement, not a check)', f'{SOLSCAN_TX}<signature>, e.g. {SOLSCAN_TX}{ts[0]["signature"]}')
+    srec = sb.get('receipt') or {}
+    if srec.get('tx') and times and len(times) == len(by_sig):
+        leg = tx_on_chain(sb['record']['subject']['network'], srec['tx'])
+        if leg.get('found') and leg.get('time') is not None and leg.get('final'):
+            add(leg['time'] <= min(times), 'The snapshot was on XL1 before the first payout',
+                f"snapshot anchored at {leg['time']} (XL1 block #{leg['block']['block']}), first payout at {min(times)} (Solana block time)")
+        else:
+            add(None, 'The snapshot was on XL1 before the first payout', 'the snapshot anchor is not final on XL1 yet; not evaluated')
+    else:
+        add(None, 'The snapshot was on XL1 before the first payout', 'no anchored snapshot transaction or payout times to compare; not evaluated')
+
+
 def leg_verdict(c, signer, commits):
     """One on-chain leg: (True, None) final and intact; (False, None) an actual failure; (None, why) pending.
 
@@ -557,8 +741,28 @@ def main():
             leaks = member_identifiers(json.loads(raw.decode('utf-8')))
         except ValueError:
             leaks = ['content is not JSON']
+        airdrop = record['claim']['type'].startswith('winlew.airdrop.')
         add(not leaks, 'No member identifiers in the published content',
-            'only salted commitments' if not leaks else f"found: {', '.join(leaks[:3])}")
+            ('no Discord ids or XL1/EVM addresses; the recipients are Solana wallets, which Solscan shows publicly once paid'
+             if airdrop else 'only salted commitments') if not leaks else f"found: {', '.join(leaks[:3])}")
+
+    # WinLEW airdrop: the snapshot freezes who is paid and how much; the distribution is checked against Solana.
+    if record['claim']['type'] in ('winlew.airdrop.snapshot', 'winlew.airdrop.distribution') and raw:
+        try:
+            content = json.loads(raw.decode('utf-8'))
+        except ValueError:
+            content = None
+        if record['claim']['type'] == 'winlew.airdrop.snapshot':
+            probs = airdrop_snapshot_problems(content)
+            add(not probs, 'Airdrop snapshot is well formed',
+                f"{len(content['recipients'])} recipients, {content['totals']['amountRaw']} base units of {content['token']['mint'][:6]}…, "
+                f"unique wallets in order, totals add up" if not probs else '; '.join(probs[:3]))
+            if not probs:
+                state("The airdrop rule (Oxyon's statement, not a check)", content.get('rule', ''))
+        else:
+            sol = (sys.argv[sys.argv.index('--solana-rpc') + 1] if '--solana-rpc' in sys.argv
+                   else os.environ.get('SOLANA_RPC', SOLANA_RPC))
+            check_airdrop_distribution(content, root, sol, add, state)
 
     # One match, one record: a game result is identified by its salted session commitment.
     if record['claim']['type'] == 'winlew.game.result' and raw:
