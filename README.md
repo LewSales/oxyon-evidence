@@ -61,9 +61,10 @@ is nothing on Mainnet.
   Git commit times are self-asserted.
 - **Who controls the keys.** That 4e88 is Oxyon rests on Oxyon publicly naming it (on
   oxyon.io and in `keys/README.md`), not on cryptography.
-- **That no revocation exists.** XL1's public endpoints have no by-address index, so
-  confirming that no revocation preceded a record means scanning the blocks in between.
-  `index.json` lists revocations, but its completeness is Oxyon's claim.
+- **That no revocation exists, beyond XYO's word.** A revocation counts only as an
+  issuer-signed transaction. Short intervals are scanned block by block; longer ones rely on
+  XYO RPC's balance history to list every block where the issuer sent a transaction (VERIFY.md,
+  Limits). `index.json` lists revocations, but its completeness is Oxyon's claim.
 
 ## Disclosure: who included the transactions
 

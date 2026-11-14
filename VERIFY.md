@@ -345,7 +345,7 @@ checks; 13 script checks plus 3 statements). Where both check the same thing, th
 | Producer, chain canonicity | `INFERRED` (first block signer; XYO's view of the chain) | Producer `INFERRED` |
 | Statements (disclosures) | Shown apart, never counted | `STATEMENT` rows, never counted |
 | Outcome | `VERIFIED` only if every check passed and none is unchecked; an unreachable source, RPC or block CDN gives `INCONCLUSIVE` or `NOT_EVALUATED`, never `VERIFIED` | As in 9b |
-| Revocation scan | Up to 500 blocks after the authorization | Up to 5,000 blocks |
+| Revocation check | Every block for intervals up to 500 blocks; longer intervals use the issuer's balance history (see Limits). A revocation must be a transaction of its block whose sender and first signer are the issuer, and its signature is checked with XYO's SDK | Every block up to 5,000; longer intervals use the issuer's balance history. Same rule, but the signature is accepted as validated by the chain (the transaction is listed in the block's own `payload_hashes`) |
 
 Neither proves that the telemetry inside the bytes is true.
 
@@ -389,16 +389,33 @@ There should be none.
 | `python verify/test_adversarial.py` | Offline, behind a dead proxy: truncated or non-JSON records, a missing batch, wrong types and a record outside a clone are `[INCOMPLETE]` (exit 2, receipt `INCONCLUSIVE`, no traceback, no `[ok]` row); the genuine record with no network is `[UNAVAILABLE]` (exit 3), never `[FAIL]` |
 | `python verify/test_receipt_check.py` | Offline: `receipt_check.py` accepts valid 0.1 and 0.2 receipts, including pending and unavailable ones; rejects malformed, unsupported, altered (outcome, counts, hidden failure), incomplete and impossible receipts; never echoes receipt text as a command; uses no network and runs nothing |
 | `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
+| `python verify/test_revocation.py` | Offline, simulated chain. A valid issuer revocation of this authorization fails the record (direct and history scans); an elevated bound witness, a forged `from`, another sender, another chain and a revocation of another authorization never count. A revocation whose record cannot be read, or whose published copy does not re-hash, is not evaluated. A history that is unavailable, malformed, short of the interval, or inconsistent with its blocks, and a missing block, are not evaluated. Duplicates are read once and incoming transfers are not candidates. A revocation hidden from XYO's history is missed by the history scan (the disclosed trust) and found by the direct scan |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
 Run them with `python -I` to keep the current directory off Python's import path.
 
 ## Limits
 
-- **Revocations.** `verify_evidence.py` scans every block from the authorization to the anchor
-  (664,733–664,739 here) for a revocation by the issuer, so this record's check is
-  independent. Ranges over 5,000 blocks fall back to `index.json`, whose completeness is
-  Oxyon's claim, and the script says so.
+- **Revocations (procedure clarified 2026-11-14, Sprint 012).**
+  - **What counts:** an `oxyon.evidence.revocation.v1` record whose `revokes` is this
+    authorization's hash, committed by a **transaction of its block** (listed in the block's own
+    `payload_hashes`) whose sender and first signer are the issuer, on the same chain. This is how
+    the authorization itself was committed, and it is what the authorization's text says ("signed by
+    the issuer"). A bound witness carried into a block as an elevated payload, or one whose `from`
+    is not backed by the issuer's signature, never counts. No revocation has ever been issued, so no
+    earlier result changes.
+  - **Reading the target:** Oxyon commits records by hash. The record is read from the block, or
+    from `keys/<network>/revocations/<hash>.json`, accepted only if it re-hashes to the committed
+    hash. If neither works, the check is not evaluated.
+  - **Short intervals** (5,000 blocks here, 500 in the browser): every block is scanned, as before.
+    For this record that is 664,733–664,739, so the check is independent of any index.
+  - **Longer intervals:** every XL1 transaction pays its fee as a transfer from its sender, so XYO
+    RPC's balance history (`accountBalanceViewer_qualifiedAccountBalanceHistories`) lists every
+    block where the issuer sent one. Only those blocks are read. The check concludes only if the
+    history covers the whole interval, every entry is well formed, and every listed block holds an
+    issuer transaction; anything else is not evaluated. **Trust:** that history is as complete as
+    XYO's transfer index, an RPC trust like finality. The receipt's `scope.revocation` names the
+    method used.
 - **Block producers.** The blocks were produced by Oxyon-operated producers (README,
   "Disclosure"). That does not change any check above, but they were not produced by an
   unrelated operator.
