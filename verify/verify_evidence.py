@@ -14,7 +14,7 @@ bundle.json = {"authorization": {...}, "record": {...}, "batch": {...},
                "anchorTx": {"network": "sequence", "hash": "..."},          # optional until broadcast
                "authorizationTx": {"network": "sequence", "hash": "..."}}   # optional until broadcast
 
-Exit codes: 0 every check passed, 1 a check failed, 2 incomplete (a required file is
+Exit codes: 0 no check failed ([pending] rows allowed, e.g. awaiting finality), 1 a check failed, 2 incomplete (a required file is
 missing), 3 unavailable (a source could not be read after retries; nothing was concluded).
 
 NOT checked here: secp256k1 signatures (the standard library has no secp256k1). This
@@ -217,9 +217,35 @@ def tx_on_chain(net, tx_hash):
         'clockSigned': bool(clock) and xyo_hash(clock) in block['payload_hashes'],
         'time': clock['epoch'] if clock else None,
         'final': bool(block) and block['block'] <= head['block'],
+        # Awaiting finality (not a failure): in a block above the finalized head XYO RPC reports, or in no
+        # block yet while its nbf..exp window still reaches above that head, so it can still land.
+        'pending': (block['block'] > head['block']) if block else tx['exp'] > head['block'],
         'sameChain': head['chain'] == tx['chain'],
         'producer': block['addresses'][0] if block else None,
     }
+
+
+def leg_verdict(c, signer, commits):
+    """One on-chain leg: (True, None) final and intact; (False, None) an actual failure; (None, why) pending.
+
+    FAILED stays for integrity failures: wrong chain, wrong hash, wrong signer, missing commitments, a bad block
+    hash or clock, a block outside nbf..exp, or a window that has passed with the transaction in none of its
+    blocks. Only an intact transaction still awaiting XYO RPC's reported finality is pending. Finality here is
+    always as reported by XYO RPC, never established independently."""
+    if not (c['sameChain'] and c['txHashOk'] and c['tx']['addresses'][0] == signer and commits):
+        return False, None
+    head = c['head']['block']
+    if c['block']:
+        if not (c['blockHashOk'] and c['clockSigned'] and c['inWindow']):
+            return False, None
+        if c['final']:
+            return True, None
+        return None, (f"Pending: block #{c['block']['block']} is above the finalized head reported by XYO RPC "
+                      f"(#{head}); not a failure, re-run later")
+    if c['pending']:
+        return None, (f"Pending: not yet in a block at or below the finalized head reported by XYO RPC (#{head}); "
+                      f"its window runs to #{c['tx']['exp']}; not a failure, re-run later")
+    return False, None
 
 
 def find_root(path):
@@ -422,17 +448,20 @@ def main():
             continue
         elevated = xyo_hash({'schema': 'network.xyo.hash', 'hash': hashes[0]})
         commits = all(h in c['tx']['payload_hashes'] for h in hashes + [elevated]) and ('elevate|' + elevated) in c['tx'].get('script', [])
-        ok = c['sameChain'] and c['txHashOk'] and c['tx']['addresses'][0] == signer and commits and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['inWindow']
+        ok, pending = leg_verdict(c, signer, commits)
         integrity = c['integrity']
         add(not integrity['problems'], f'Transaction integrity ({key})',
             '; '.join(integrity['problems'][:3]) if integrity['problems'] else
             f"{len(c['tx']['payload_hashes'])} commitments, {integrity['elevated']} elevated payload(s) re-hashed here, chain is {ref['network']}, landed inside nbf..exp={c['inWindow']}")
         for note in integrity['unverified']:
             add(None, f'Not decided by this script ({key})', note)
-        times[key] = c['time']
+        if c['time'] is not None:
+            times[key] = c['time']
+        elif ok is None:
+            times.setdefault('_pending', []).append(key)
         if c['block']:
             bundle.setdefault('_blocks', {})[key] = c['block']['block']
-        add(ok, title, f"block #{c['block']['block'] if c['block'] else '?'}, signed time {c['time']}, final={c['final']}, commits={commits}")
+        add(ok, title, pending or f"block #{c['block']['block'] if c['block'] else '?'}, signed time {c['time']}, final={c['final']}, commits={commits}")
         claimed = bundle.get('receipts', {}).get(key)
         if claimed and c['block']:
             facts = {'block': c['block']['block'], 'blockHash': c['block']['_hash'], 'blockTime': c['time'], 'blockProducer': c['producer'], 'chainId': c['tx']['chain']}
@@ -462,13 +491,17 @@ def main():
         add(auth['validFrom'] <= t < auth['validUntil'], 'Anchor block time is inside the authorization window', f'{t}')
         if 'authorizationTx' in times:
             add(times['authorizationTx'] <= t, 'Authorization was on chain before the anchor', f"{times['authorizationTx']} ≤ {t}")
+    elif 'anchorTx' in times.get('_pending', []):
+        add(None, 'Anchor block time is inside the authorization window', 'not evaluated yet: the anchor is pending (no block time yet)')
 
     if '--plumbing-tx' in sys.argv:
         h = sys.argv[sys.argv.index('--plumbing-tx') + 1]
         c = tx_on_chain('sequence', h)
         _RUN.setdefault('legs', {})['plumbingTx'] = _leg_facts({'network': 'sequence', 'hash': h}, c)
-        add(c['found'] and c['txHashOk'] and c['blockHashOk'] and c['clockSigned'] and c['final'] and c['sameChain'] and c['inWindow'] and not c['integrity']['problems'],
-            f'Chain plumbing on tx {h[:10]}…', f"block #{c['block']['block'] if c.get('block') else '?'}, signed time {c.get('time')}, head #{c['head']['block'] if c.get('head') else '?'}")
+        ok, pending = leg_verdict(c, c['tx']['addresses'][0], True) if c['found'] else (False, None)
+        if c['found'] and c['integrity']['problems']:
+            ok, pending = False, None
+        add(ok, f'Chain plumbing on tx {h[:10]}…', pending or f"block #{c['block']['block'] if c.get('block') else '?'}, signed time {c.get('time')}, head #{c['head']['block'] if c.get('head') else '?'}")
 
     for ok, title, detail in rows:
         print(f"{'[pending]' if ok is None else '[ok]' if ok else '[FAIL]'} {title}: {detail}")
@@ -493,7 +526,7 @@ def _leg_facts(ref, c):
         'rpc': NETS.get(ref.get('network'), (None, None))[0],
         'found': bool(c.get('found')),
         'block': block.get('block'), 'blockHash': block.get('_hash'),
-        'finalizedHead': head.get('block'), 'final': bool(c.get('final')),
+        'finalizedHead': head.get('block'), 'final': bool(c.get('final')), 'pending': bool(c.get('pending')),
         'signedTime': c.get('time'), 'producerAddress': c.get('producer'),
     }
 
@@ -591,7 +624,7 @@ def build_receipt(run, exit_code, argv, performed_at, script_sha256, python_vers
                                             'that this script checks independently',
                          'independentlyEstablished': False,
                          'legs': {k: {'block': v['block'], 'finalizedHead': v['finalizedHead'], 'final': v['final'],
-                                      'rpc': v['rpc']} for k, v in legs.items()}},
+                                      'pending': v.get('pending', False), 'rpc': v['rpc']} for k, v in legs.items()}},
             'producerAttribution': {'status': 'INFERRED',
                                     'basis': 'the first address that signed the block (block.addresses[0]) is treated as '
                                              'its producer; not cryptographically proven to be the producer',
