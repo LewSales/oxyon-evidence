@@ -308,6 +308,29 @@ check `receiptVersion` and must not read a 0.2 receipt's signature scope or exit
 differ from this script by design (Record A: browser 18, Python 13). The receipt is offered only after a run
 that finished; one that could not start offers none.
 
+Since 2026-11-14, a 0.2 receipt also carries `procedure.manifest` (the build manifest that loaded with the page: the
+exact SHA-256 of each procedure file in that deploy), `procedure.loadedBuilds` (the build each module that ran reports),
+and `procedure.provenance`: `COMPLETE`, `MIXED` (modules from two deploys ran together), `CHANGED_SINCE_LOAD` (the site
+was redeployed after the page loaded; the manifest still describes what ran) or `INCOMPLETE` (something could not be
+established), with reasons. Provenance never changes `outcome.status`.
+
+## 9b3. Reading any receipt offline
+
+```
+python verify/receipt_check.py <receipt.json>
+```
+
+Reads 0.1 and 0.2 receipts with no network and runs nothing. It checks the schema and version, the required fields, and
+that the receipt agrees with itself: the counts and outcome are recomputed from its own check rows with the rules of the
+procedure that wrote it, and claims that procedure cannot make (a 0.1 receipt with evaluated signatures, a signed or
+independently-final 0.2 receipt) are rejected. It then prints the procedure, the outcome **the receipt claims**, the
+trust limits, and copy-paste commands to re-run the checks. The commands are built only from validated hashes, network
+names and record paths, with fixed endpoints; text inside the receipt is never echoed as a command. What it cannot
+rebuild, it lists as missing.
+
+A receipt that passes is consistent, not true: it is unsigned, and anyone can write a consistent one. Exit codes describe
+the receipt: 0 consistent, 1 invalid or altered, 2 unreadable, 3 unsupported.
+
 ## 9c. The browser Evidence Explorer and this script
 
 The record pages at `oxyon.io/evidence/` run their own checks in your browser. They use the same outcome words and the same
@@ -364,6 +387,7 @@ There should be none.
 | `python verify/test_unavailable.py` | An unreachable source gives exit 3 and `[UNAVAILABLE]`, never `[FAIL]` |
 | `python verify/test_pending.py` | Offline: an intact transaction awaiting the reported finalized head is `[pending]` (receipt `INCONCLUSIVE`); a finalized one passes; tampered blocks, a wrong signer, missing commitments and an expired window still fail; an unreachable source raises UNAVAILABLE. Also pins exit code and receipt status together (VERIFIED 0, FAILED 1, pending 0 + INCONCLUSIVE, UNAVAILABLE 3 + NOT_EVALUATED) and that `selftest.py` never accepts a pending genuine record |
 | `python verify/test_adversarial.py` | Offline, behind a dead proxy: truncated or non-JSON records, a missing batch, wrong types and a record outside a clone are `[INCOMPLETE]` (exit 2, receipt `INCONCLUSIVE`, no traceback, no `[ok]` row); the genuine record with no network is `[UNAVAILABLE]` (exit 3), never `[FAIL]` |
+| `python verify/test_receipt_check.py` | Offline: `receipt_check.py` accepts valid 0.1 and 0.2 receipts, including pending and unavailable ones; rejects malformed, unsupported, altered (outcome, counts, hidden failure), incomplete and impossible receipts; never echoes receipt text as a command; uses no network and runs nothing |
 | `python verify/test_receipt.py` | The `--receipt` file never claims more than the run established. Covers: outcome mapping (a `[pending]` check is never `VERIFIED`); signatures `NOT_EVALUATED`; finality as RPC-reported; producer `INFERRED`; no network calls in receipt code; and, offline, the same stdout and exit code with and without the flag |
 | `python verify/test_one_match.py` | One match, one record. Covers: duplicates, from both sides; several duplicates in a stable order; other matches and claim types; malformed record files; malformed content hashes; missing archived content; results without a `sessionCommitment`; repeated runs. It also checks that **every committed record** still hashes to its file name, has its archived content, and that no committed game result shares a match or names a member |
 
