@@ -17,6 +17,7 @@ GENUINE = 'records/sequence/2026/10/09/14-82a3779a906c3eb92561300b819a052a98d1fd
 CASES = [
     # (file, expected exit code, text that must appear, what it shows)
     (GENUINE, 0, '[ok] Published receipt matches the chain (anchorTx)', 'genuine record verifies'),
+    (GENUINE, 0, "[statement] Oxyon's disclosure (anchorTx", 'disclosures print as statements, not [ok]'),
     ('verify/fixtures/tampered-claim.json', 1, '[FAIL] Record is in the batch', 'one letter of the claim changed'),
     ('verify/fixtures/tampered-sha256.json', 1, '[FAIL] Snapshot bytes match the record', 'committed SHA-256 altered'),
     ('verify/fixtures/false-receipt.json', 1, '[FAIL] Published receipt matches the chain (anchorTx)', 'receipt names the wrong block producer'),

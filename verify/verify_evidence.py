@@ -362,7 +362,7 @@ def main():
     rows = []
     _RUN['rows'] = rows  # receipt layer reads the same rows that are printed; nothing else changes
     add = lambda ok, title, detail: rows.append((ok, title, detail))
-    # A disclosure is printed exactly like a passing row ([ok]), but it is a statement, not a check.
+    # A disclosure is a statement, not a check. Since 2026-11-14 it prints as [statement] (before: [ok]).
     # Its row index is recorded so the receipt can tell the two apart without matching text.
     _RUN['statements'] = statements = set()
     state = lambda title, detail: (statements.add(len(rows)), rows.append((True, title, detail)))
@@ -505,9 +505,17 @@ def main():
             ok, pending = False, None
         add(ok, f'Chain plumbing on tx {h[:10]}…', pending or f"block #{c['block']['block'] if c.get('block') else '?'}, signed time {c.get('time')}, head #{c['head']['block'] if c.get('head') else '?'}")
 
-    for ok, title, detail in rows:
-        print(f"{'[pending]' if ok is None else '[ok]' if ok else '[FAIL]'} {title}: {detail}")
+    for i, row in enumerate(rows):
+        print(render_row(i, row, statements))
     sys.exit(exit_code(rows))
+
+
+def render_row(i, row, statements=()):
+    """One printed row. Statements (disclosures) print as [statement]: they are never checks, never counted,
+    and never change the exit code or the receipt outcome."""
+    ok, title, detail = row
+    tag = '[statement]' if i in statements else '[pending]' if ok is None else '[ok]' if ok else '[FAIL]'
+    return f'{tag} {title}: {detail}'
 
 
 def exit_code(rows):

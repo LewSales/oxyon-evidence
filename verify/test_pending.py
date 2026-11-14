@@ -165,5 +165,23 @@ class ExitCodeIsNotAVerdict(unittest.TestCase):
         self.assertIn("if path == GENUINE and '[pending]' in p.stdout:", src)
 
 
+class StatementRows(unittest.TestCase):
+    """Sprint 006: disclosures print as [statement], not [ok]; counts, exit code and receipt are unchanged."""
+    rows = [(True, 'Check A', 'x'), (True, "Oxyon's disclosure (anchorTx, a statement, not a check)", 'note'), (None, 'Check B', 'Pending: …')]
+
+    def test_render(self):
+        self.assertEqual(ve.render_row(0, self.rows[0], {1}), '[ok] Check A: x')
+        self.assertEqual(ve.render_row(1, self.rows[1], {1}), "[statement] Oxyon's disclosure (anchorTx, a statement, not a check): note")
+        self.assertEqual(ve.render_row(2, self.rows[2], {1}), '[pending] Check B: Pending: …')
+        self.assertEqual(ve.render_row(0, (False, 'C', 'y')), '[FAIL] C: y')
+
+    def test_statements_change_nothing_else(self):
+        self.assertEqual(ve.exit_code(self.rows), 0)
+        r = ve.build_receipt({'rows': self.rows, 'statements': [1], 'legs': {}}, 0, ['v.py', 'x.json'], 't', '0' * 64, '3', None)
+        self.assertEqual(r['receiptVersion'], '0.1')
+        self.assertEqual(r['outcome']['counts'], {'verified': 1, 'failed': 0, 'notEvaluated': 1, 'statements': 1})
+        self.assertEqual(r['checks'][1]['status'], 'STATEMENT')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
